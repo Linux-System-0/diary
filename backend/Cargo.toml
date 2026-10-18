@@ -34,6 +34,7 @@ tower-http = { version = "0.6", features = ["trace", "cors", "limit", "timeout",
 tower_governor = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+unicode-segmentation = "1"
 uuid = { version = "1", features = ["v4"] }
 validator = { version = "0.20", features = ["derive"] }
 zeroize = { version = "1", features = ["derive"] }
