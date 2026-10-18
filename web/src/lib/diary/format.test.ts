@@ -104,5 +104,20 @@ describe('.diary v1 shared vectors', () => {
         )
       )
     ).toThrowError(/结构/);
+    expect(() =>
+      parseDiaryJson(
+        new TextEncoder().encode(
+          JSON.stringify({
+            format: 'diary',
+            version: 1,
+            tags: [],
+            entries: [
+              { date: '2025-01-01', content_md: 'a', tags: [] },
+              { date: '2025-01-01', content_md: 'b', tags: [] }
+            ]
+          })
+        )
+      )
+    ).toThrowError(/重复/);
   });
 });

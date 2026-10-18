@@ -1,5 +1,5 @@
 import { argon2id } from 'hash-wasm';
-import { diaryPayloadSchema, type DiaryPayload } from './schema';
+import { MAX_ENTRY_BYTES, diaryPayloadSchema, type DiaryPayload } from './schema';
 
 export const MAGIC = new Uint8Array([0x44, 0x49, 0x41, 0x52, 0x59, 0x1a, 0x01, 0x00]);
 export const VERSION = 1;
@@ -334,6 +334,18 @@ export function parseDiaryJson(
       'bad_json',
       `payload 结构非法: ${parsed.error.issues[0]?.message ?? '未知错误'}`
     );
+  }
+
+  const dates = new Set<string>();
+  const encoder = new TextEncoder();
+  for (const entry of parsed.data.entries) {
+    if (dates.has(entry.date)) {
+      throw new DiaryFormatError('bad_json', `日记日期重复: ${entry.date}`);
+    }
+    dates.add(entry.date);
+    if (encoder.encode(entry.content_md).length > MAX_ENTRY_BYTES) {
+      throw new DiaryFormatError('bad_json', `${entry.date} 的正文超过 1 MiB`);
+    }
   }
   return parsed.data;
 }
