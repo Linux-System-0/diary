@@ -1,0 +1,69 @@
+# ============================================================
+# 仓库统一规范：换行符、二进制判定、差异驱动、合并策略
+# 提交前请确认仓库内只有本文件一份“真源”，不要在其他地方再改规范化。
+# 新增文件类型时请同步更新本文件。
+# ============================================================
+
+# ---------- 默认规则 ----------
+# 由 Git 自动嗅探文本/二进制；文本一律在仓库内以 LF 存储。
+# 这样 Windows 检出可按需转 CRLF，而仓库内容永远是 LF，避免整文件 diff 噪音。
+* text=auto eol=lf
+
+# ---------- 源码：Rust ----------
+# 注：diff=<driver> 只使用 Git 内建驱动（rust / markdown 等），
+# 未内建的语言不写 driver，走默认文本 diff，避免产生无声失效的配置。
+*.rs      text eol=lf diff=rust
+*.toml    text eol=lf
+*.lock    text eol=lf
+Cargo.lock  text eol=lf -diff linguist-generated=true
+# 说明：Cargo.lock 由 Cargo 生成，-diff 让其变更不污染代码审阅；
+# 但它是二进制 crate 的构建契约，必须入库（与 .gitignore 保持一致）。
+
+# ---------- 文档 ----------
+*.md      text eol=lf diff=markdown
+*.txt     text eol=lf
+
+# ---------- 前端（SvelteKit / Node） ----------
+*.ts      text eol=lf
+*.js      text eol=lf
+*.mjs     text eol=lf
+*.cjs     text eol=lf
+*.svelte  text eol=lf
+*.json    text eol=lf
+*.css     text eol=lf
+*.html    text eol=lf
+# 生成的锁文件同样不参与 diff 审阅
+package-lock.json  text eol=lf -diff linguist-generated=true
+pnpm-lock.yaml     text eol=lf -diff linguist-generated=true
+yarn.lock          text eol=lf -diff linguist-generated=true
+
+# ---------- 配置 / 脚本 ----------
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.sh      text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.env.example    text eol=lf
+
+# Windows 批处理必须是 CRLF，否则 cmd.exe 解析会出错
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# ---------- 合并策略 ----------
+# 生成的锁文件不做行级合并，冲突时直接重新生成更安全
+Cargo.lock        merge=binary
+package-lock.json merge=binary
+pnpm-lock.yaml    merge=binary
+yarn.lock         merge=binary
+
+
+# CI/CD
+.github/ export-ignore
+
+# 说明文件
+*.md    export-ignore
+
+# Git
+.gitignore     export-ignore
+.gitattributes export-ignore

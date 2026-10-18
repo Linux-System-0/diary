@@ -1,0 +1,67 @@
+# ---------- Rust / Cargo ----------
+target/
+**/*.rs.bk
+*.pdb
+
+# 二进制 crate：Cargo.lock 必须提交（保证可复现构建），故不忽略
+
+# ---------- 前端（SvelteKit / Node） ----------
+node_modules/
+.svelte-kit/
+build/
+dist/
+.vercel/
+.netlify/
+*.tsbuildinfo
+.vite/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.eslintcache
+
+# ---------- 运行时数据（SQLite） ----------
+# 数据库及其 WAL/SHM 附属文件绝不入库
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+data/
+
+# ---------- 机密与本地配置 ----------
+# 提交 .env.example 作为模板，真实密钥不入库
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- 日志 / 临时文件 ----------
+*.log
+logs/
+tmp/
+*.tmp
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+
+# ---------- 编辑器 / IDE ----------
+.idea/
+.vscode/
+*.iml
+.history/
+
+# ---------- 操作系统 ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+[Dd]esktop.ini
