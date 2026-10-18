@@ -1,0 +1,21 @@
+[Unit]
+Description=diary backend
+After=network.target
+
+[Service]
+Type=simple
+User=diary
+Group=diary
+EnvironmentFile=/etc/diary.env
+ExecStart=/usr/local/bin/diary
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/diary
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

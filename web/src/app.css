@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prose-diary {
+  line-height: 1.75;
+}
+.prose-diary h1,
+.prose-diary h2,
+.prose-diary h3 {
+  font-weight: 700;
+  margin: 1.2em 0 0.5em;
+}
+.prose-diary h1 {
+  font-size: 1.5rem;
+}
+.prose-diary h2 {
+  font-size: 1.25rem;
+}
+.prose-diary h3 {
+  font-size: 1.1rem;
+}
+.prose-diary p,
+.prose-diary ul,
+.prose-diary ol,
+.prose-diary blockquote,
+.prose-diary pre {
+  margin: 0.7em 0;
+}
+.prose-diary ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.prose-diary ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.prose-diary blockquote {
+  border-left: 3px solid var(--color-stone-300);
+  padding-left: 0.9em;
+  color: var(--color-stone-600);
+}
+.dark .prose-diary blockquote {
+  border-color: var(--color-stone-700);
+  color: var(--color-stone-400);
+}
+.prose-diary code {
+  background: var(--color-stone-200);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.3em;
+  font-size: 0.9em;
+}
+.dark .prose-diary code {
+  background: var(--color-stone-800);
+}
+.prose-diary pre {
+  background: var(--color-stone-900);
+  color: var(--color-stone-100);
+  border-radius: 0.5rem;
+  padding: 0.9rem;
+  overflow-x: auto;
+}
+.prose-diary pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose-diary a {
+  color: var(--color-amber-700);
+  text-decoration: underline;
+}
+.dark .prose-diary a {
+  color: var(--color-amber-400);
+}
+.prose-diary img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+.prose-diary .md-image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px dashed var(--color-stone-400);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  color: var(--color-stone-500);
+  font-size: 0.85rem;
+  cursor: pointer;
+}

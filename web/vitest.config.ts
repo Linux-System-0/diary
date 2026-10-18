@@ -1,0 +1,9 @@
+import { configDefaults, defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    testTimeout: 60_000,
+    exclude: [...configDefaults.exclude, 'e2e/**']
+  }
+});
