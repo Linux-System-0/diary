@@ -12,6 +12,7 @@
   let loading = $state(false);
 
   const registered = $derived(page.url.searchParams.get('registered') === '1');
+  const passwordChanged = $derived(page.url.searchParams.get('changed') === '1');
   const nextPath = $derived(page.url.searchParams.get('next') || '/');
 
   async function submitPassword(event: SubmitEvent) {
@@ -61,6 +62,11 @@
   {#if registered}
     <p class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
       注册成功，请登录。
+    </p>
+  {/if}
+  {#if passwordChanged}
+    <p class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+      密码已修改，所有旧会话已失效，请重新登录。
     </p>
   {/if}
 
