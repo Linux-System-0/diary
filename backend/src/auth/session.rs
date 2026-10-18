@@ -93,7 +93,7 @@ pub async fn rotate_refresh(
     ttl: Duration,
 ) -> ApiResult<Rotation> {
     let now = now_unix();
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let row = sqlx::query_as::<_, RefreshRow>(
         "SELECT id, user_id, expires_at, revoked_at, replaced_by FROM refresh_tokens \

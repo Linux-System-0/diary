@@ -270,7 +270,7 @@ pub async fn change_password(
 
     let new_hash = hash_password(&request.new_password).map_err(ApiError::internal)?;
     let now = now_unix();
-    let mut tx = state.pool.begin().await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let changed = if let Some(step) = consumed_step {
         sqlx::query(
             "UPDATE users SET password_hash = ?, token_version = token_version + 1, \
