@@ -84,7 +84,8 @@
         plaintext.fill(0);
       }
       password = '';
-      selectedDate = sortedEntries[0]?.date ?? payload.entries[0]?.date ?? '';
+      selectedDate =
+        [...payload.entries].sort((a, b) => b.date.localeCompare(a.date))[0]?.date ?? '';
       visibleCount = PAGE_SIZE;
     } catch (cause) {
       error = formatError(cause, '密码错误，或文件已损坏');
