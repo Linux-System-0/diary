@@ -91,6 +91,8 @@ pub fn app(state: AppState) -> Result<Router> {
         )
         .route("/auth/password", post(routes::twofa::change_password));
 
+    let export = Router::new().route("/export/prepare", post(routes::export::prepare));
+
     let entries = Router::new()
         .route("/entries", get(routes::entries::list))
         .route(
@@ -106,7 +108,8 @@ pub fn app(state: AppState) -> Result<Router> {
         .merge(auth)
         .merge(twofa)
         .merge(tags)
-        .merge(entries);
+        .merge(entries)
+        .merge(export);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
