@@ -66,6 +66,14 @@ pub async fn apply_twofa_disable_deadline(
     .rows_affected();
 
     if changed > 0 {
+        sqlx::query(
+            "UPDATE refresh_tokens SET revoked_at = ? \
+             WHERE user_id = ? AND revoked_at IS NULL",
+        )
+        .bind(now)
+        .bind(user.id)
+        .execute(pool)
+        .await?;
         tracing::info!(user_id = user.id, "2FA 冷静期到期，已自动关闭 2FA");
     }
     Ok(changed > 0)

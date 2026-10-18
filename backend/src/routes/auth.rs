@@ -152,6 +152,14 @@ pub async fn login(
         .bind(user.id)
         .execute(&state.pool)
         .await?;
+        sqlx::query(
+            "UPDATE refresh_tokens SET revoked_at = ? \
+             WHERE user_id = ? AND revoked_at IS NULL",
+        )
+        .bind(now_unix())
+        .bind(user.id)
+        .execute(&state.pool)
+        .await?;
         tracing::info!(user_id = user.id, "2FA 冷静期到期，已自动关闭 2FA");
         user.totp_enabled = false;
         user.token_version += 1;
