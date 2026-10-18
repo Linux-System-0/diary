@@ -241,6 +241,59 @@ async fn auth_register_login_refresh_rotation_and_reuse_detection() {
 }
 
 #[tokio::test]
+async fn password_change_revokes_all_tokens_and_requires_the_new_password() {
+    let app = TestApp::new().await;
+    let password = "correct horse battery staple";
+    let new_password = "a much longer passphrase";
+    app.register("erin", password).await;
+    let session = app.session("erin", password).await;
+
+    let (status, _, value) = app
+        .call(
+            Method::POST,
+            "/api/v1/auth/password",
+            Some(json!({
+                "current_password": password,
+                "new_password": new_password
+            })),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{value}");
+
+    let (status, _, _) = app
+        .call(
+            Method::GET,
+            "/api/v1/auth/me",
+            None,
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+    let (status, _, _) = app
+        .call(
+            Method::POST,
+            "/api/v1/auth/refresh",
+            None,
+            None,
+            Some(&session.cookie),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+    let (status, _, _) = app.login("erin", password).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _, _) = app.login("erin", new_password).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
 async fn tags_and_entries_are_user_scoped_and_tags_must_be_active() {
     let app = TestApp::new().await;
     let password = "correct horse battery staple";
@@ -510,6 +563,32 @@ async fn two_factor_state_machine_replay_and_lazy_disable() {
         }
     }
 
+    let (_, _, login) = app.login("carol", password).await;
+    assert_eq!(login["mfa_required"], true, "2FA must stay active during the cooling-off period");
+
+    let (status, _, _) = app
+        .call(
+            Method::POST,
+            "/api/v1/auth/2fa/disable/cancel",
+            None,
+            Some(&token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, _, me) = app
+        .call(
+            Method::GET,
+            "/api/v1/auth/me",
+            None,
+            Some(&token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(me["twofa_disable_at"], Value::Null);
+
     // Move the lazy-disable deadline into the past and verify the next
     // authenticated request turns 2FA off and invalidates the token.
     let past = now_unix() - 1;
@@ -700,6 +779,38 @@ async fn export_and_import_are_scoped_idempotent_and_do_not_touch_other_dates() 
         .unwrap();
     assert_eq!(untouched["content_md"], "untouched");
 
+    // Archiving a tag and importing again restores it instead of creating a
+    // duplicate, because the imported entry still references that name.
+    let (_, _, tags) = app
+        .call(
+            Method::GET,
+            "/api/v1/tags?include_archived=true",
+            None,
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    let new_tag_id = tags
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tag| tag["name"] == "新标签")
+        .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let (status, _, _) = app
+        .call(
+            Method::DELETE,
+            &format!("/api/v1/tags/{new_tag_id}"),
+            None,
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
     // Re-importing is idempotent.
     let (_, _, preview) = app
         .call(
@@ -728,6 +839,57 @@ async fn export_and_import_are_scoped_idempotent_and_do_not_touch_other_dates() 
     assert_eq!(committed["created"], 0);
     assert_eq!(committed["updated"], 2);
     assert_eq!(committed["tags_created"], 0);
+
+    let (_, _, tags) = app
+        .call(
+            Method::GET,
+            "/api/v1/tags?include_archived=true",
+            None,
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    let restored = tags
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tag| tag["name"] == "新标签")
+        .unwrap();
+    assert_eq!(restored["archived"], false);
+}
+
+#[tokio::test]
+async fn export_size_limit_returns_413() {
+    let app = TestApp::with_config_overrides(|config| {
+        config.max_export_bytes = 64;
+    })
+    .await;
+    let password = "correct horse battery staple";
+    app.register("frank", password).await;
+    let session = app.session("frank", password).await;
+    app.call(
+        Method::PUT,
+        "/api/v1/entries/2025-05-01",
+        Some(json!({ "content_md": "x".repeat(200), "tag_ids": [] })),
+        Some(&session.token),
+        None,
+        None,
+    )
+    .await;
+
+    let (status, _, value) = app
+        .call(
+            Method::POST,
+            "/api/v1/export/prepare",
+            Some(json!({ "scope": "all" })),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(value["error"]["code"], "export_too_large");
 }
 
 #[tokio::test]

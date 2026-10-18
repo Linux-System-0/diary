@@ -172,7 +172,7 @@ pub async fn upsert(
         .into_iter()
         .collect();
 
-    let mut tx = state.pool.begin().await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let existing = sqlx::query_as::<_, EntryRow>(
         "SELECT id, entry_date, content_md, created_at, updated_at FROM entries \

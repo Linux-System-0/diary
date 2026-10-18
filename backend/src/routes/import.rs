@@ -173,7 +173,7 @@ pub async fn commit(
     let prepared = prepare_payload(&payload, &state)?;
     let selected = select_entries(&prepared.entries, request.scope, &request.dates)?;
 
-    let mut tx = state.pool.begin().await?;
+    let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
     let local_tags =
         sqlx::query_as::<_, LocalTag>("SELECT id, name, deleted_at FROM tags WHERE user_id = ?")
             .bind(user.id)
