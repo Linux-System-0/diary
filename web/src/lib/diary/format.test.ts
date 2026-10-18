@@ -8,7 +8,8 @@ import {
   encryptDiary,
   hexToBytes,
   parseDiaryJson,
-  parseHeader
+  parseHeader,
+  sealPlaintextDiary
 } from './format';
 
 type Vector = {
@@ -78,6 +79,16 @@ describe('.diary v1 shared vectors', () => {
 
     expect(() => parseHeader(base.slice(0, -1))).toThrowError();
     expect(() => parseHeader(base.slice(0, 57))).toThrowError();
+  });
+
+  it('creates unencrypted files with zeroed KDF fields', async () => {
+    const file = sealPlaintextDiary('hello 世界');
+    const header = parseHeader(file);
+    expect(header.kdf).toBe(0);
+    expect(header.flags).toBe(0);
+    expect(header.mCost).toBe(0);
+    expect(header.salt.every((byte) => byte === 0)).toBe(true);
+    expect(new TextDecoder().decode(await decryptDiary(file, ''))).toBe('hello 世界');
   });
 
   it('parses JSON payloads and rejects malformed ones', () => {
