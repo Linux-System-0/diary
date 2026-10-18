@@ -39,9 +39,7 @@ impl ImportStore {
 
     pub async fn get(&self, user_id: i64, import_id: &str) -> Option<DiaryPayload> {
         let mut inner = self.inner.lock().await;
-        let Some(stored) = inner.get(&user_id) else {
-            return None;
-        };
+        let stored = inner.get(&user_id)?;
         if stored.id != import_id {
             return None;
         }
