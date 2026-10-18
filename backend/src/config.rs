@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::SecretBox;
 
 /// Runtime configuration, loaded once from the environment (optionally `.env`).
 ///
