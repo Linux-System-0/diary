@@ -6,12 +6,13 @@ use axum::{
     http::{HeaderValue, StatusCode, header},
     response::Response,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::FromRow;
 
 use crate::{
     auth::AuthUser,
     error::{ApiError, ApiJson, ApiResult},
+    format::{DiaryEntry, DiaryPayload, DiaryTag},
     state::AppState,
     util::{now_unix, to_rfc3339, valid_filter_date},
 };
@@ -28,35 +29,6 @@ pub struct ExportRequest {
     pub scope: Scope,
     #[serde(default)]
     pub dates: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExportPayload {
-    pub format: String,
-    pub version: u32,
-    pub exported_at: String,
-    pub app: String,
-    pub timezone: String,
-    pub tags: Vec<ExportTag>,
-    pub entries: Vec<ExportEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExportTag {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub emoji: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExportEntry {
-    pub date: String,
-    pub content_md: String,
-    pub tags: Vec<String>,
-    pub created_at: String,
-    pub updated_at: String,
 }
 
 #[derive(FromRow)]
@@ -86,9 +58,9 @@ pub async fn prepare(
     let entries = load_entries(&state, user.id, request.scope, &dates).await?;
     let tag_rows = load_entry_tags(&state, user.id, &entries).await?;
 
-    let mut tag_lookup: HashMap<i64, ExportTag> = HashMap::new();
+    let mut tag_lookup: HashMap<i64, DiaryTag> = HashMap::new();
     for row in &tag_rows {
-        tag_lookup.entry(row.id).or_insert_with(|| ExportTag {
+        tag_lookup.entry(row.id).or_insert_with(|| DiaryTag {
             name: row.name.clone(),
             color: row.color.clone(),
             emoji: row.emoji.clone(),
@@ -103,7 +75,7 @@ pub async fn prepare(
         tags_by_entry.entry(row.entry_id).or_default().push(row.name);
     }
 
-    let payload = ExportPayload {
+    let payload = DiaryPayload {
         format: "diary".into(),
         version: 1,
         exported_at: to_rfc3339(now_unix()),
@@ -112,12 +84,12 @@ pub async fn prepare(
         tags,
         entries: entries
             .into_iter()
-            .map(|entry| ExportEntry {
+            .map(|entry| DiaryEntry {
                 date: entry.entry_date.clone(),
                 content_md: entry.content_md,
                 tags: tags_by_entry.remove(&entry.id).unwrap_or_default(),
-                created_at: to_rfc3339(entry.created_at),
-                updated_at: to_rfc3339(entry.updated_at),
+                created_at: Some(to_rfc3339(entry.created_at)),
+                updated_at: Some(to_rfc3339(entry.updated_at)),
             })
             .collect(),
     };
