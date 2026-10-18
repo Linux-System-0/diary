@@ -252,7 +252,7 @@ pub fn decrypt(password: &str, file: &[u8], max_payload: u64) -> Result<Vec<u8>>
         .map_err(|_| anyhow::anyhow!("密码错误或文件已损坏"))
 }
 
-fn derive_key(
+pub fn derive_key(
     password: &str,
     salt: &[u8; SALT_LEN],
     m_cost: u32,
