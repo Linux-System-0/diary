@@ -209,7 +209,7 @@ pub async fn upsert(
     }
 
     if !tag_ids.is_empty() {
-        let active_tags: HashSet<i64> = sqlx::query_scalar(
+        let mut allowed_tags: HashSet<i64> = sqlx::query_scalar(
             "SELECT id FROM tags WHERE user_id = ? AND deleted_at IS NULL",
         )
         .bind(user.id)
@@ -217,7 +217,19 @@ pub async fn upsert(
         .await?
         .into_iter()
         .collect();
-        if let Some(unknown) = tag_ids.iter().find(|id| !active_tags.contains(id)) {
+
+        // Archived tags may stay attached to an existing entry; they just cannot
+        // be newly selected. Otherwise editing an old diary would silently break.
+        if let Some(current) = &existing {
+            let existing_tags: Vec<i64> =
+                sqlx::query_scalar("SELECT tag_id FROM entry_tags WHERE entry_id = ?")
+                    .bind(current.id)
+                    .fetch_all(&mut *tx)
+                    .await?;
+            allowed_tags.extend(existing_tags);
+        }
+
+        if let Some(unknown) = tag_ids.iter().find(|id| !allowed_tags.contains(id)) {
             tx.rollback().await?;
             return Err(ApiError::bad_request(
                 "unknown_tag",

@@ -317,6 +317,20 @@ async fn tags_and_entries_are_user_scoped_and_tags_must_be_active() {
     assert_eq!(status, StatusCode::OK, "{value}");
     assert_eq!(value["content_md"], "updated");
 
+    // Keep a second entry tagged before archiving it; editing that entry later
+    // must preserve the now-archived tag instead of rejecting the save.
+    let (status, _, _) = app
+        .call(
+            Method::PUT,
+            "/api/v1/entries/2025-01-05",
+            Some(json!({ "content_md": "tagged", "tag_ids": [tag_id] })),
+            Some(&alice.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
     // Bob cannot reference Alice's tag.
     let (status, _, value) = app
         .call(
@@ -346,6 +360,19 @@ async fn tags_and_entries_are_user_scoped_and_tags_must_be_active() {
     let (status, _, value) = app
         .call(
             Method::PUT,
+            "/api/v1/entries/2025-01-05",
+            Some(json!({ "content_md": "still tagged", "tag_ids": [tag_id] })),
+            Some(&alice.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{value}");
+    assert_eq!(value["tags"][0]["id"], tag_id);
+
+    let (status, _, value) = app
+        .call(
+            Method::PUT,
             "/api/v1/entries/2025-01-04",
             Some(json!({ "content_md": "archived", "tag_ids": [tag_id] })),
             Some(&alice.token),
@@ -367,7 +394,7 @@ async fn tags_and_entries_are_user_scoped_and_tags_must_be_active() {
         )
         .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(list.as_array().unwrap().len(), 1);
+    assert_eq!(list.as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
