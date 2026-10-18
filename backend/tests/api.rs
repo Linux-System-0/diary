@@ -564,7 +564,10 @@ async fn two_factor_state_machine_replay_and_lazy_disable() {
     }
 
     let (_, _, login) = app.login("carol", password).await;
-    assert_eq!(login["mfa_required"], true, "2FA must stay active during the cooling-off period");
+    assert_eq!(
+        login["mfa_required"], true,
+        "2FA must stay active during the cooling-off period"
+    );
 
     let (status, _, _) = app
         .call(
