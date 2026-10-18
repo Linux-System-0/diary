@@ -34,8 +34,8 @@ server {
     # 静态资源长缓存；index.html 不缓存，保证升级后立即生效。
     location /_app/immutable/ {
         try_files $uri =404;
+        # expires 会生成 Cache-Control，避免 add_header 覆盖上面继承的安全头。
         expires 1y;
-        add_header Cache-Control "public, immutable";
     }
 
     location /api/ {
@@ -52,6 +52,6 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html;
-        add_header Cache-Control "no-cache";
+        expires -1;
     }
 }
