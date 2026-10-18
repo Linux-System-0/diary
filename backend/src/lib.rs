@@ -42,7 +42,7 @@ pub fn build_state(config: Config, pool: SqlitePool) -> AppState {
         config: Arc::new(config),
         pool,
         imports: import_store::ImportStore::new(),
-        rate_limits: rate_limit::RateLimits::new(),
+        rate_limits: std::sync::Arc::new(rate_limit::RateLimits::new()),
     }
 }
 
