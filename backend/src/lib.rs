@@ -3,6 +3,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod format;
+pub mod import_store;
 pub mod routes;
 pub mod state;
 pub mod util;
@@ -39,6 +40,7 @@ pub fn build_state(config: Config, pool: SqlitePool) -> AppState {
     AppState {
         config: Arc::new(config),
         pool,
+        imports: import_store::ImportStore::new(),
     }
 }
 
