@@ -1,8 +1,12 @@
+mod cookies;
 mod extract;
 mod jwt;
 mod password;
 
-pub use extract::{AuthUser, apply_twofa_disable_deadline, load_user, UserRow};
+pub use cookies::{
+    REFRESH_COOKIE, clear_refresh_cookie, read_refresh_cookie, refresh_cookie,
+};
+pub use extract::{AuthUser, UserRow, apply_twofa_disable_deadline, load_user};
 
 pub use jwt::{
     Decoded, IssuedToken, decode_access, decode_mfa, issue_access, issue_mfa,
