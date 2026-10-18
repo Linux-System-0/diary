@@ -286,7 +286,7 @@ if !totp.check_current(&code)? { return Err(invalid_code); }
 
 - **防重放（必做）**：成功后写 `totp_last_step = step`，并要求 `step > totp_last_step`，否则 409 `code_already_used`。没有这条，同一个码在 90 秒窗口内可被重复使用。
 - 输入归一化：去空格、只保留数字、长度必须 6，否则直接拒绝（不消耗限流额度之外的重试）。
-- **secret 静态加密**：`secret_enc = [key_id=0] || XChaCha20-Poly1305(DIARY_MASTER_KEY, nonce, secret)`，nonce 12 字节随机、随密文前缀存储。DB 泄露 ≠ 2FA 被绕过。
+- **secret 静态加密**：`secret_enc = [key_id=0] || nonce(24) || XChaCha20-Poly1305(DIARY_MASTER_KEY, nonce, secret)`，nonce 24 字节随机（XChaCha20 要求）、随密文前缀存储。DB 泄露 ≠ 2FA 被绕过。
 
 **绑定流程**
 
