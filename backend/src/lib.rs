@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use axum::{
     Router,
     http::{HeaderValue, Method, StatusCode, header},
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -73,10 +73,18 @@ pub fn app(state: AppState) -> Result<Router> {
         .route("/auth/logout", post(routes::auth::logout))
         .route("/auth/me", get(routes::auth::me));
 
+    let tags = Router::new()
+        .route("/tags", get(routes::tags::list).post(routes::tags::create))
+        .route(
+            "/tags/{id}",
+            patch(routes::tags::update).delete(routes::tags::delete),
+        );
+
     let api = Router::new()
         .route("/healthz", get(routes::health::healthz))
         .route("/readyz", get(routes::health::readyz))
-        .merge(auth);
+        .merge(auth)
+        .merge(tags);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
