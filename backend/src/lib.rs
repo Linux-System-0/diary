@@ -207,6 +207,12 @@ async fn origin_guard(
     request: Request,
     next: Next,
 ) -> Response {
+    let sensitive = request.uri().path().starts_with("/api/v1")
+        && !matches!(
+            request.uri().path(),
+            "/api/v1/healthz" | "/api/v1/readyz"
+        );
+
     if let Some(origin) = request.headers().get(header::ORIGIN) {
         let allowed = origin
             .to_str()
@@ -218,6 +224,11 @@ async fn origin_guard(
     }
 
     let mut response = next.run(request).await;
+    if sensitive && !response.headers().contains_key(header::CACHE_CONTROL) {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
     response.headers_mut().insert(
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),
