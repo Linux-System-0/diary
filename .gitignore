@@ -29,7 +29,7 @@ blob-report/
 *.sqlite3
 *.sqlite-wal
 *.sqlite-shm
-data/
+/data/
 
 # ---------- 机密与本地配置 ----------
 # 提交 .env.example 作为模板，真实密钥不入库

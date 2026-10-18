@@ -343,6 +343,28 @@ export function serializeDiaryPayload(payload: DiaryPayload): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(parsed));
 }
 
+export function sealPlaintextDiary(input: Uint8Array | string): Uint8Array {
+  const plaintext = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+  if (plaintext.length > DEFAULT_MAX_PAYLOAD) {
+    throw new DiaryFormatError('too_large', '导出内容超过 64 MiB');
+  }
+  const header = buildHeader({
+    version: VERSION,
+    flags: 0,
+    kdf: KDF_NONE,
+    mCost: 0,
+    tCost: 0,
+    pCost: 0,
+    salt: new Uint8Array(SALT_LEN),
+    nonce: new Uint8Array(NONCE_LEN),
+    payloadLen: plaintext.length
+  });
+  const out = new Uint8Array(HEADER_LEN + plaintext.length);
+  out.set(header, 0);
+  out.set(plaintext, HEADER_LEN);
+  return out;
+}
+
 export function isEncrypted(header: DiaryHeader): boolean {
   return (header.flags & FLAG_ENCRYPTED) !== 0;
 }
