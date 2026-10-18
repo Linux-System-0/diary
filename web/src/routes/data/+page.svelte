@@ -13,6 +13,7 @@
   } from '#lib/diary/format';
   import type { DiaryPayload } from '#lib/diary/schema';
   import { fromIso, toIso } from '#lib/utils/date';
+  import { passwordHint } from '#lib/utils/password';
 
   let exportScope = $state<'all' | 'range'>('all');
   let exportFrom = $state(toIso(new Date()));
@@ -47,6 +48,7 @@
     fileDates.filter((date) => selected[date])
   );
   const importScope = $derived(importScopeAll ? 'all' : 'dates');
+  const exportHint = $derived(passwordHint(exportPassword));
 
   async function doExport() {
     exportError = null;
@@ -286,6 +288,9 @@
             bind:value={exportPassword}
             required
           />
+          {#if exportHint}
+            <span class="mt-1 block text-xs {exportHint.tone}">强度：{exportHint.label}</span>
+          {/if}
         </label>
         <label class="text-sm">
           <span class="mb-1 block text-stone-600 dark:text-stone-300">确认密码</span>

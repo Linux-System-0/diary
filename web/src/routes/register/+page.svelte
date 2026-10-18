@@ -1,12 +1,14 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { ApiError, api } from '#lib/api';
+  import { passwordHint } from '#lib/utils/password';
 
   let username = $state('');
   let password = $state('');
   let confirm = $state('');
   let error = $state<string | null>(null);
   let loading = $state(false);
+  const hint = $derived(passwordHint(password));
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -68,7 +70,9 @@
         bind:value={password}
         required
       />
-      <span class="mt-1 block text-xs text-stone-500">至少 8 个字符，不能是常见弱口令</span>
+      <span class="mt-1 block text-xs text-stone-500">
+        至少 8 个字符，不能是常见弱口令{#if hint}<span class="ml-2 {hint.tone}">强度：{hint.label}</span>{/if}
+      </span>
     </label>
     <label class="block text-sm">
       <span class="mb-1 block text-stone-600 dark:text-stone-300">确认密码</span>
