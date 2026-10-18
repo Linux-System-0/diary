@@ -78,7 +78,7 @@
       header = parsedHeader;
       fileBytes = bytes;
       encrypted = (parsedHeader.flags & 1) === 1;
-      viewerFile.set(encrypted ? { name, bytes } : null);
+      viewerFile.set({ name, bytes });
       if (!encrypted) {
         await unlock();
       }
