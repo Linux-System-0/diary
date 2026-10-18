@@ -17,6 +17,7 @@ use crate::{
         validate_password, verify_password,
     },
     error::{ApiError, ApiJson, ApiResult},
+    rate_limit,
     routes::auth::{issue_session, no_store, set_cookie},
     state::AppState,
     util::{now_unix, to_rfc3339},
@@ -140,6 +141,11 @@ pub async fn verify(
         &request.mfa_token,
     )?;
     let row = load_user_or_401(&state, user_id).await?;
+    let now = now_unix();
+    let limit_key = rate_limit::twofa_key(row.id);
+    if let Some(retry_after) = state.rate_limits.locked_for(&limit_key, now).await {
+        return Err(ApiError::too_many(retry_after));
+    }
 
     if apply_twofa_disable_deadline(&state.pool, &row, now_unix()).await? {
         return Err(ApiError::unauthorized(
@@ -154,7 +160,21 @@ pub async fn verify(
         ));
     }
 
-    let step = verify_user_code(&state, &row, &request.code)?;
+    let step = match verify_user_code(&state, &row, &request.code) {
+        Ok(step) => {
+            state.rate_limits.clear(&limit_key).await;
+            step
+        }
+        Err(error) => {
+            if error.code() == "invalid_totp" {
+                state
+                    .rate_limits
+                    .record_failure(&limit_key, 10, 3600, 0, now)
+                    .await;
+            }
+            return Err(error);
+        }
+    };
     let changed = sqlx::query(
         "UPDATE users SET totp_last_step = ?, updated_at = ? WHERE id = ? AND totp_last_step < ?",
     )
@@ -185,6 +205,14 @@ pub async fn disable(
     ApiJson(request): ApiJson<DisableRequest>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let row = load_user_or_401(&state, user.id).await?;
+    let limit_key = rate_limit::disable_key(user.id);
+    if let Some(retry_after) = state
+        .rate_limits
+        .check_and_hit(&limit_key, 3, 24 * 60 * 60, now_unix())
+        .await
+    {
+        return Err(ApiError::too_many(retry_after));
+    }
     if !verify_password(&request.password, &row.password_hash) {
         return Err(ApiError::unauthorized(
             "invalid_credentials",

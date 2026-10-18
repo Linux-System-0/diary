@@ -19,6 +19,7 @@ use crate::{
         revoke_refresh, rotate_refresh, validate_password, verify_password,
     },
     error::{ApiError, ApiJson, ApiResult},
+    rate_limit,
     state::AppState,
     util::{now_unix, to_rfc3339},
 };
@@ -90,6 +91,12 @@ pub async fn login(
     ApiJson(request): ApiJson<LoginRequest>,
 ) -> ApiResult<Response> {
     let username_norm = request.username.trim().to_lowercase();
+    let now = now_unix();
+    let login_key = rate_limit::login_key(&username_norm);
+    if let Some(retry_after) = state.rate_limits.locked_for(&login_key, now).await {
+        return Err(ApiError::too_many(retry_after));
+    }
+
     let user = sqlx::query_as::<_, LoginUser>(
         "SELECT id, password_hash, totp_enabled, twofa_disable_at, token_version \
          FROM users WHERE username_norm = ?",
@@ -101,12 +108,21 @@ pub async fn login(
     let Some(mut user) = user else {
         // Equalize timing so usernames cannot be enumerated.
         verify_password(&request.password, dummy_hash());
+        state
+            .rate_limits
+            .record_failure(&login_key, 20, 3600, 900, now)
+            .await;
         return Err(invalid_credentials());
     };
 
     if !verify_password(&request.password, &user.password_hash) {
+        state
+            .rate_limits
+            .record_failure(&login_key, 20, 3600, 900, now)
+            .await;
         return Err(invalid_credentials());
     }
+    state.rate_limits.clear(&login_key).await;
 
     if password_needs_rehash(&user.password_hash) {
         let upgraded = hash_password(&request.password).map_err(ApiError::internal)?;

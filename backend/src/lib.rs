@@ -14,10 +14,13 @@ use std::{sync::Arc, time::Duration};
 use anyhow::{Context, Result};
 use axum::{
     Router,
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, Request, State},
     http::{HeaderValue, Method, StatusCode, header},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, patch, post},
 };
+use secrecy::ExposeSecret;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -25,9 +28,15 @@ use tower_http::{
     timeout::TimeoutLayer,
     trace::TraceLayer,
 };
+use tower_governor::{GovernorError, GovernorLayer, governor::GovernorConfigBuilder};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::{config::Config, state::AppState};
+use crate::{
+    auth::{Decoded, decode_access},
+    config::Config,
+    error::ApiError,
+    state::AppState,
+};
 
 pub fn init_tracing(filter: &str) {
     let filter = EnvFilter::try_new(filter).unwrap_or_else(|_| EnvFilter::new("info"));
@@ -71,9 +80,40 @@ pub fn app(state: AppState) -> Result<Router> {
         ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT]);
 
+    let register_limit = GovernorLayer::new(
+        GovernorConfigBuilder::default()
+            .per_second(3600)
+            .burst_size(5)
+            .finish()
+            .expect("注册限流配置合法"),
+    )
+    .error_handler(governor_error);
+    let login_limit = GovernorLayer::new(
+        GovernorConfigBuilder::default()
+            .per_second(300)
+            .burst_size(10)
+            .finish()
+            .expect("登录限流配置合法"),
+    )
+    .error_handler(governor_error);
+    let verify_limit = GovernorLayer::new(
+        GovernorConfigBuilder::default()
+            .per_second(300)
+            .burst_size(10)
+            .finish()
+            .expect("2FA 限流配置合法"),
+    )
+    .error_handler(governor_error);
+
     let auth = Router::new()
-        .route("/auth/register", post(routes::auth::register))
-        .route("/auth/login", post(routes::auth::login))
+        .route(
+            "/auth/register",
+            post(routes::auth::register).route_layer(register_limit),
+        )
+        .route(
+            "/auth/login",
+            post(routes::auth::login).route_layer(login_limit),
+        )
         .route("/auth/refresh", post(routes::auth::refresh))
         .route("/auth/logout", post(routes::auth::logout))
         .route("/auth/me", get(routes::auth::me));
@@ -86,7 +126,10 @@ pub fn app(state: AppState) -> Result<Router> {
         );
 
     let twofa = Router::new()
-        .route("/auth/2fa/verify", post(routes::twofa::verify))
+        .route(
+            "/auth/2fa/verify",
+            post(routes::twofa::verify).route_layer(verify_limit),
+        )
         .route("/auth/2fa/setup", get(routes::twofa::setup))
         .route("/auth/2fa/enable", post(routes::twofa::enable))
         .route("/auth/2fa/disable", post(routes::twofa::disable))
@@ -112,15 +155,22 @@ pub fn app(state: AppState) -> Result<Router> {
                 .delete(routes::entries::delete),
         );
 
+    let business = Router::new()
+        .merge(tags)
+        .merge(entries)
+        .merge(export)
+        .merge(import)
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            write_rate_limit,
+        ));
+
     let api = Router::new()
         .route("/healthz", get(routes::health::healthz))
         .route("/readyz", get(routes::health::readyz))
         .merge(auth)
         .merge(twofa)
-        .merge(tags)
-        .merge(entries)
-        .merge(export)
-        .merge(import);
+        .merge(business);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
@@ -133,7 +183,70 @@ pub fn app(state: AppState) -> Result<Router> {
         .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn_with_state(state.clone(), origin_guard))
         .with_state(state))
+}
+
+fn governor_error(error: GovernorError) -> Response {
+    let wait = match &error {
+        GovernorError::TooManyRequests { wait_time, .. } => *wait_time,
+        _ => 1,
+    };
+    ApiError::too_many(wait).into_response()
+}
+
+async fn origin_guard(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Some(origin) = request.headers().get(header::ORIGIN) {
+        let allowed = origin
+            .to_str()
+            .ok()
+            .is_some_and(|origin| state.config.cors_origins.iter().any(|item| item == origin));
+        if !allowed {
+            return ApiError::forbidden("invalid_origin", "Origin 不在白名单").into_response();
+        }
+    }
+
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    response.headers_mut().insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
+}
+
+async fn write_rate_limit(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let is_write = matches!(
+        *request.method(),
+        Method::POST | Method::PUT | Method::PATCH | Method::DELETE
+    );
+    if is_write
+        && let Some(token) = request
+            .headers()
+            .get(header::AUTHORIZATION)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("Bearer "))
+        && let Ok(Decoded::Access { user_id, .. }) =
+            decode_access(state.config.jwt_secret.expose_secret(), token)
+        && let Some(retry_after) = state
+            .rate_limits
+            .check_and_hit(&rate_limit::write_key(user_id), 300, 60, rate_limit::now())
+            .await
+    {
+        return ApiError::too_many(retry_after).into_response();
+    }
+    next.run(request).await
 }
 
 pub async fn run(config: Config) -> Result<()> {
