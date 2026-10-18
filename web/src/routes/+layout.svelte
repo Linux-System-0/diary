@@ -3,7 +3,14 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import { auth, bootstrapAuth, isPublicPath, logout } from '#lib/stores/auth';
+  import { ApiError, api } from '#lib/api';
+  import {
+    auth,
+    bootstrapAuth,
+    isPublicPath,
+    loadCurrentUser,
+    logout
+  } from '#lib/stores/auth';
 
   let { children } = $props();
 
@@ -37,6 +44,15 @@
     await logout();
     await goto('/login');
   }
+
+  async function cancelTwofaDisable() {
+    try {
+      await api.cancelDisable2fa();
+      await loadCurrentUser();
+    } catch (cause) {
+      console.error(cause instanceof ApiError ? cause.message : cause);
+    }
+  }
 </script>
 
 {#if state.status === 'loading'}
@@ -47,6 +63,23 @@
     </div>
   </div>
 {:else}
+  {#if state.status === 'authenticated' && state.user.twofa_disable_at}
+    <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
+        <span>
+          两步验证将于 {new Date(state.user.twofa_disable_at).toLocaleString()} 自动关闭。
+        </span>
+        <a href="/settings" class="underline">查看设置</a>
+        <button
+          type="button"
+          class="rounded border border-amber-300 px-2 py-0.5 text-xs hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900"
+          onclick={cancelTwofaDisable}
+        >
+          取消关闭
+        </button>
+      </div>
+    </div>
+  {/if}
   {#if state.status === 'authenticated' && pathname !== '/viewer'}
     <header class="border-b border-stone-200 bg-white/80 backdrop-blur dark:border-stone-800 dark:bg-stone-950/80">
       <div class="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
