@@ -185,7 +185,7 @@ pub fn app(state: AppState) -> Result<Router> {
         .route("/readyz", get(routes::health::readyz))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
-            Duration::from_secs(60),
+            Duration::from_secs(120),
         ))
         .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
         .layer(cors)
