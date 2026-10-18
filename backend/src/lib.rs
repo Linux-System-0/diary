@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod config;
 pub mod db;
+pub mod diary_file;
 pub mod error;
 pub mod format;
 pub mod import_store;
