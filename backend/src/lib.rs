@@ -177,7 +177,8 @@ pub fn app(state: AppState) -> Result<Router> {
         .route("/readyz", get(routes::health::readyz))
         .merge(auth)
         .merge(twofa)
-        .merge(business);
+        .merge(business)
+        .fallback(api_not_found);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
@@ -192,6 +193,10 @@ pub fn app(state: AppState) -> Result<Router> {
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(state.clone(), origin_guard))
         .with_state(state))
+}
+
+async fn api_not_found() -> ApiError {
+    ApiError::not_found("not_found", "接口不存在")
 }
 
 fn governor_error(error: GovernorError) -> Response {
