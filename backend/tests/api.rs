@@ -6,13 +6,7 @@ use axum::{
     extract::ConnectInfo,
     http::{HeaderMap, Method, Request, StatusCode, header},
 };
-use diary::{
-    auth::build_totp,
-    config::Config,
-    db,
-    state::AppState,
-    util::now_unix,
-};
+use diary::{auth::build_totp, config::Config, db, state::AppState, util::now_unix};
 use secrecy::SecretBox;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -104,9 +98,8 @@ impl TestApp {
         let value = if bytes.is_empty() {
             Value::Null
         } else {
-            serde_json::from_slice(&bytes).unwrap_or_else(|_| {
-                Value::String(String::from_utf8_lossy(&bytes).into_owned())
-            })
+            serde_json::from_slice(&bytes)
+                .unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&bytes).into_owned()))
         };
         (status, headers, value)
     }
@@ -180,7 +173,14 @@ async fn auth_register_login_refresh_rotation_and_reuse_detection() {
 
     let session = app.session("alice", password).await;
     let (status, _, me) = app
-        .call(Method::GET, "/api/v1/auth/me", None, Some(&session.token), None, None)
+        .call(
+            Method::GET,
+            "/api/v1/auth/me",
+            None,
+            Some(&session.token),
+            None,
+            None,
+        )
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(me["username"], "alice");
@@ -215,7 +215,14 @@ async fn auth_register_login_refresh_rotation_and_reuse_detection() {
     assert_eq!(value["error"]["code"], "token_reused");
 
     let (status, _, value) = app
-        .call(Method::GET, "/api/v1/auth/me", None, Some(&new_token), None, None)
+        .call(
+            Method::GET,
+            "/api/v1/auth/me",
+            None,
+            Some(&new_token),
+            None,
+            None,
+        )
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert_eq!(value["error"]["code"], "invalid_token");
@@ -416,7 +423,12 @@ async fn two_factor_state_machine_replay_and_lazy_disable() {
         .await;
     assert_eq!(status, StatusCode::OK, "{setup}");
     let secret = setup["secret_base32"].as_str().unwrap().to_owned();
-    assert!(setup["otpauth_uri"].as_str().unwrap().starts_with("otpauth://totp/"));
+    assert!(
+        setup["otpauth_uri"]
+            .as_str()
+            .unwrap()
+            .starts_with("otpauth://totp/")
+    );
 
     let enable_code = code_at_step(&secret, "carol", 0);
     let (status, _, value) = app
@@ -517,11 +529,12 @@ async fn two_factor_state_machine_replay_and_lazy_disable() {
         )
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{value}");
-    let (enabled, version): (bool, i64) =
-        sqlx::query_as("SELECT totp_enabled, token_version FROM users WHERE username_norm = 'carol'")
-            .fetch_one(&app.state.pool)
-            .await
-            .unwrap();
+    let (enabled, version): (bool, i64) = sqlx::query_as(
+        "SELECT totp_enabled, token_version FROM users WHERE username_norm = 'carol'",
+    )
+    .fetch_one(&app.state.pool)
+    .await
+    .unwrap();
     assert!(!enabled);
     assert_eq!(version, 1);
 }
@@ -576,10 +589,7 @@ async fn export_and_import_are_scoped_idempotent_and_do_not_touch_other_dates() 
         )
         .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(
-        headers.get(header::CACHE_CONTROL).unwrap(),
-        "no-store"
-    );
+    assert_eq!(headers.get(header::CACHE_CONTROL).unwrap(), "no-store");
     assert_eq!(exported["format"], "diary");
     assert_eq!(exported["entries"].as_array().unwrap().len(), 2);
 
@@ -678,10 +688,16 @@ async fn export_and_import_are_scoped_idempotent_and_do_not_touch_other_dates() 
     assert_eq!(status, StatusCode::OK);
     let entries = entries.as_array().unwrap();
     assert_eq!(entries.len(), 3);
-    let imported = entries.iter().find(|entry| entry["date"] == "2025-02-01").unwrap();
+    let imported = entries
+        .iter()
+        .find(|entry| entry["date"] == "2025-02-01")
+        .unwrap();
     assert_eq!(imported["content_md"], "imported");
     assert_eq!(imported["tags"].as_array().unwrap().len(), 2);
-    let untouched = entries.iter().find(|entry| entry["date"] == "2025-02-03").unwrap();
+    let untouched = entries
+        .iter()
+        .find(|entry| entry["date"] == "2025-02-03")
+        .unwrap();
     assert_eq!(untouched["content_md"], "untouched");
 
     // Re-importing is idempotent.
@@ -731,7 +747,9 @@ async fn origin_checks_registration_limits_and_body_limits() {
     assert_eq!(value["error"]["code"], "invalid_origin");
 
     for index in 1..=6 {
-        let (status, _) = app.register(&format!("user{index}"), "correct horse battery").await;
+        let (status, _) = app
+            .register(&format!("user{index}"), "correct horse battery")
+            .await;
         if index < 6 {
             assert_eq!(status, StatusCode::CREATED, "registration {index}");
         } else {

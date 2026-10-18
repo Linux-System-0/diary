@@ -72,7 +72,10 @@ pub async fn prepare(
 
     let mut tags_by_entry: HashMap<i64, Vec<String>> = HashMap::new();
     for row in tag_rows {
-        tags_by_entry.entry(row.entry_id).or_default().push(row.name);
+        tags_by_entry
+            .entry(row.entry_id)
+            .or_default()
+            .push(row.name);
     }
 
     let payload = DiaryPayload {
@@ -104,9 +107,10 @@ pub async fn prepare(
 
     let len = body.len();
     let mut response = Response::new(Body::from(body));
-    response
-        .headers_mut()
-        .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
@@ -132,10 +136,7 @@ fn normalize_dates(scope: Scope, dates: Vec<String>) -> ApiResult<Vec<String>> {
         ));
     }
     if dates.len() > 100_000 {
-        return Err(ApiError::bad_request(
-            "invalid_dates",
-            "日期数量超过上限",
-        ));
+        return Err(ApiError::bad_request("invalid_dates", "日期数量超过上限"));
     }
     let mut seen = HashSet::new();
     let mut normalized = Vec::with_capacity(dates.len());
@@ -180,7 +181,10 @@ async fn load_entries(
         separated.push_bind(date);
     }
     builder.push(") ORDER BY entry_date");
-    Ok(builder.build_query_as::<EntryRow>().fetch_all(&state.pool).await?)
+    Ok(builder
+        .build_query_as::<EntryRow>()
+        .fetch_all(&state.pool)
+        .await?)
 }
 
 async fn load_entry_tags(
@@ -203,5 +207,8 @@ async fn load_entry_tags(
         separated.push_bind(entry.id);
     }
     builder.push(") ORDER BY t.sort_order, t.name");
-    Ok(builder.build_query_as::<TagRow>().fetch_all(&state.pool).await?)
+    Ok(builder
+        .build_query_as::<TagRow>()
+        .fetch_all(&state.pool)
+        .await?)
 }

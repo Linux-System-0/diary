@@ -1,9 +1,4 @@
-use std::{
-    env,
-    net::SocketAddr,
-    path::PathBuf,
-    time::Duration,
-};
+use std::{env, net::SocketAddr, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -80,8 +75,7 @@ impl Config {
             mfa_ttl: secs_env("DIARY_MFA_TOKEN_TTL_SECS", 300)?,
             totp_skew: num_env("DIARY_TOTP_SKEW", 1)?,
             twofa_disable_delay: Duration::from_secs(
-                num_env::<u64>("DIARY_TWOFA_DISABLE_DELAY_DAYS", 7)?
-                    .saturating_mul(24 * 60 * 60),
+                num_env::<u64>("DIARY_TWOFA_DISABLE_DELAY_DAYS", 7)?.saturating_mul(24 * 60 * 60),
             ),
             max_entry_bytes: num_env("DIARY_MAX_ENTRY_BYTES", 1_048_576)?,
             max_export_bytes: num_env("DIARY_MAX_EXPORT_BYTES", 67_108_864)?,

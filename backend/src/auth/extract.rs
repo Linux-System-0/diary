@@ -95,10 +95,7 @@ impl FromRequestParts<AppState> for AuthUser {
             ..
         } = decoded
         else {
-            return Err(ApiError::unauthorized(
-                "mfa_required",
-                "请先完成两步验证",
-            ));
+            return Err(ApiError::unauthorized("mfa_required", "请先完成两步验证"));
         };
 
         let user = load_user(&state.pool, user_id)
@@ -106,7 +103,10 @@ impl FromRequestParts<AppState> for AuthUser {
             .ok_or_else(|| ApiError::unauthorized("invalid_token", "登录状态无效或已过期"))?;
 
         if user.token_version != token_version {
-            return Err(ApiError::unauthorized("invalid_token", "登录状态无效或已过期"));
+            return Err(ApiError::unauthorized(
+                "invalid_token",
+                "登录状态无效或已过期",
+            ));
         }
 
         if apply_twofa_disable_deadline(&state.pool, &user, now_unix()).await? {

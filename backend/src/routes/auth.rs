@@ -14,9 +14,9 @@ use sqlx::FromRow;
 
 use crate::{
     auth::{
-        AuthUser, clear_refresh_cookie, hash_password, issue_access, issue_mfa,
-        issue_refresh, password_needs_rehash, read_refresh_cookie, refresh_cookie,
-        revoke_refresh, rotate_refresh, validate_password, verify_password,
+        AuthUser, clear_refresh_cookie, hash_password, issue_access, issue_mfa, issue_refresh,
+        password_needs_rehash, read_refresh_cookie, refresh_cookie, revoke_refresh, rotate_refresh,
+        validate_password, verify_password,
     },
     error::{ApiError, ApiJson, ApiResult},
     rate_limit,
@@ -50,10 +50,7 @@ pub async fn register(
     ApiJson(request): ApiJson<RegisterRequest>,
 ) -> ApiResult<Response> {
     if !state.config.allow_registration {
-        return Err(ApiError::forbidden(
-            "registration_disabled",
-            "注册已关闭",
-        ));
+        return Err(ApiError::forbidden("registration_disabled", "注册已关闭"));
     }
 
     if let Some(retry_after) = state
@@ -68,8 +65,7 @@ pub async fn register(
     validate_password(&request.password)
         .map_err(|message| ApiError::bad_request("weak_password", message))?;
 
-    let password_hash = hash_password(&request.password)
-        .map_err(ApiError::internal)?;
+    let password_hash = hash_password(&request.password).map_err(ApiError::internal)?;
     let now = now_unix();
     let username_norm = username.to_lowercase();
 
@@ -87,9 +83,9 @@ pub async fn register(
 
     match result {
         Ok(_) => Ok((StatusCode::CREATED, Json(json!({ "ok": true }))).into_response()),
-        Err(sqlx::Error::Database(error)) if error.is_unique_violation() => Err(
-            ApiError::conflict("username_taken", "用户名已被使用"),
-        ),
+        Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {
+            Err(ApiError::conflict("username_taken", "用户名已被使用"))
+        }
         Err(error) => Err(ApiError::from(error)),
     }
 }
@@ -142,7 +138,11 @@ pub async fn login(
             .await?;
     }
 
-    if user.totp_enabled && user.twofa_disable_at.is_some_and(|deadline| now_unix() >= deadline) {
+    if user.totp_enabled
+        && user
+            .twofa_disable_at
+            .is_some_and(|deadline| now_unix() >= deadline)
+    {
         sqlx::query(
             "UPDATE users SET totp_enabled = 0, totp_secret_enc = NULL, \
              totp_pending_at = NULL, twofa_disable_at = NULL, \
@@ -163,12 +163,14 @@ pub async fn login(
             user.id,
             state.config.mfa_ttl,
         )?;
-        return Ok(no_store(Json(json!({
-            "mfa_required": true,
-            "mfa_token": mfa.token,
-            "expires_in": mfa.expires_in,
-        }))
-        .into_response()));
+        return Ok(no_store(
+            Json(json!({
+                "mfa_required": true,
+                "mfa_token": mfa.token,
+                "expires_in": mfa.expires_in,
+            }))
+            .into_response(),
+        ));
     }
 
     let (access, refresh) = issue_session(&state, user.id, user.token_version).await?;
@@ -181,10 +183,7 @@ pub async fn login(
     Ok(no_store(response))
 }
 
-pub async fn refresh(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<Response> {
+pub async fn refresh(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Response> {
     let Some(raw) = read_refresh_cookie(&headers) else {
         return Err(ApiError::unauthorized(
             "invalid_token",
@@ -214,10 +213,9 @@ pub async fn refresh(
         }
         Err(error) => {
             let mut response = error.into_response();
-            response.headers_mut().insert(
-                header::SET_COOKIE,
-                clear_refresh_cookie(&state.config),
-            );
+            response
+                .headers_mut()
+                .insert(header::SET_COOKIE, clear_refresh_cookie(&state.config));
             Ok(response)
         }
     }
@@ -239,13 +237,15 @@ pub async fn logout(
 }
 
 pub async fn me(_user: AuthUser) -> Response {
-    no_store(Json(json!({
-        "id": _user.id,
-        "username": _user.username,
-        "totp_enabled": _user.totp_enabled,
-        "twofa_disable_at": _user.twofa_disable_at.map(to_rfc3339),
-    }))
-    .into_response())
+    no_store(
+        Json(json!({
+            "id": _user.id,
+            "username": _user.username,
+            "totp_enabled": _user.totp_enabled,
+            "twofa_disable_at": _user.twofa_disable_at.map(to_rfc3339),
+        }))
+        .into_response(),
+    )
 }
 
 pub async fn issue_session(
@@ -259,8 +259,7 @@ pub async fn issue_session(
         token_version,
         state.config.access_ttl,
     )?;
-    let (raw, _expires_at) =
-        issue_refresh(&state.pool, user_id, state.config.refresh_ttl).await?;
+    let (raw, _expires_at) = issue_refresh(&state.pool, user_id, state.config.refresh_ttl).await?;
     let cookie = refresh_cookie(&state.config, &raw, state.config.refresh_ttl.as_secs());
     Ok((access, cookie))
 }

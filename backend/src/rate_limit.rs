@@ -91,9 +91,7 @@ fn prune(inner: &mut HashMap<String, Window>, now: i64) {
     if inner.len() < 4096 {
         return;
     }
-    inner.retain(|_, window| {
-        window.locked_until > now || now - window.start < 24 * 60 * 60
-    });
+    inner.retain(|_, window| window.locked_until > now || now - window.start < 24 * 60 * 60);
 }
 
 pub fn login_key(username_norm: &str) -> String {

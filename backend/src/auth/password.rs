@@ -25,7 +25,9 @@ pub fn verify_password(password: &str, stored_hash: &str) -> bool {
     let Ok(parsed) = PasswordHash::new(stored_hash) else {
         return false;
     };
-    argon2().verify_password(password.as_bytes(), &parsed).is_ok()
+    argon2()
+        .verify_password(password.as_bytes(), &parsed)
+        .is_ok()
 }
 
 /// Returns true when an existing hash uses weaker/older parameters and should be

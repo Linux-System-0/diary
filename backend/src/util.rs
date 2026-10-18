@@ -1,6 +1,5 @@
 use time::{
-    Date, OffsetDateTime, PrimitiveDateTime, UtcOffset,
-    format_description::well_known::Rfc3339,
+    Date, OffsetDateTime, PrimitiveDateTime, UtcOffset, format_description::well_known::Rfc3339,
 };
 
 pub fn now_unix() -> i64 {
@@ -38,7 +37,10 @@ pub fn valid_entry_date(value: &str) -> bool {
     {
         return false;
     }
-    let Ok(date) = Date::parse(value, time::macros::format_description!("[year]-[month]-[day]")) else {
+    let Ok(date) = Date::parse(
+        value,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    ) else {
         return false;
     };
     valid_calendar_date(date)
@@ -58,8 +60,11 @@ pub fn valid_filter_date(value: &str) -> bool {
     {
         return false;
     }
-    Date::parse(value, time::macros::format_description!("[year]-[month]-[day]"))
-        .is_ok_and(|date| date.year() >= 1970)
+    Date::parse(
+        value,
+        time::macros::format_description!("[year]-[month]-[day]"),
+    )
+    .is_ok_and(|date| date.year() >= 1970)
 }
 
 pub fn valid_calendar_date(date: Date) -> bool {

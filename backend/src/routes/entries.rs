@@ -70,16 +70,8 @@ pub async fn list(
     user: AuthUser,
     Query(query): Query<ListQuery>,
 ) -> ApiResult<Json<Vec<EntryResponse>>> {
-    let from = query
-        .from
-        .as_deref()
-        .map(validate_query_date)
-        .transpose()?;
-    let to = query
-        .to
-        .as_deref()
-        .map(validate_query_date)
-        .transpose()?;
+    let from = query.from.as_deref().map(validate_query_date).transpose()?;
+    let to = query.to.as_deref().map(validate_query_date).transpose()?;
     if matches!((&from, &to), (Some(from), Some(to)) if from > to) {
         return Err(ApiError::bad_request(
             "invalid_date_range",
@@ -152,19 +144,13 @@ pub async fn upsert(
     if content_len > state.config.max_entry_bytes {
         return Err(ApiError::too_large(
             "entry_too_large",
-            format!(
-                "正文最多 {} 字节",
-                state.config.max_entry_bytes
-            ),
+            format!("正文最多 {} 字节", state.config.max_entry_bytes),
         ));
     }
     if request.tag_ids.len() > state.config.max_tags_per_entry {
         return Err(ApiError::bad_request(
             "too_many_tags",
-            format!(
-                "每篇日记最多 {} 个标签",
-                state.config.max_tags_per_entry
-            ),
+            format!("每篇日记最多 {} 个标签", state.config.max_tags_per_entry),
         ));
     }
 
@@ -209,14 +195,13 @@ pub async fn upsert(
     }
 
     if !tag_ids.is_empty() {
-        let mut allowed_tags: HashSet<i64> = sqlx::query_scalar(
-            "SELECT id FROM tags WHERE user_id = ? AND deleted_at IS NULL",
-        )
-        .bind(user.id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .collect();
+        let mut allowed_tags: HashSet<i64> =
+            sqlx::query_scalar("SELECT id FROM tags WHERE user_id = ? AND deleted_at IS NULL")
+                .bind(user.id)
+                .fetch_all(&mut *tx)
+                .await?
+                .into_iter()
+                .collect();
 
         // Archived tags may stay attached to an existing entry; they just cannot
         // be newly selected. Otherwise editing an old diary would silently break.
@@ -240,14 +225,12 @@ pub async fn upsert(
 
     let now = now_unix();
     let entry_id = if let Some(current) = &existing {
-        sqlx::query(
-            "UPDATE entries SET content_md = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(&request.content_md)
-        .bind(now)
-        .bind(current.id)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("UPDATE entries SET content_md = ?, updated_at = ? WHERE id = ?")
+            .bind(&request.content_md)
+            .bind(now)
+            .bind(current.id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM entry_tags WHERE entry_id = ?")
             .bind(current.id)
             .execute(&mut *tx)
@@ -362,7 +345,10 @@ async fn load_tags_for_entries(
         separated.push_bind(id);
     }
     builder.push(") ORDER BY t.sort_order, t.name");
-    Ok(builder.build_query_as::<TagBriefRow>().fetch_all(pool).await?)
+    Ok(builder
+        .build_query_as::<TagBriefRow>()
+        .fetch_all(pool)
+        .await?)
 }
 
 fn validate_path_date(date: &str) -> ApiResult<()> {

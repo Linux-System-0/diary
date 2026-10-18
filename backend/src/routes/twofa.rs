@@ -58,15 +58,15 @@ pub async fn setup(
     // Reuse an unconfirmed pending secret so reloading the page does not
     // invalidate an already-scanned QR code.
     let secret = match (&row.totp_secret_enc, row.totp_pending_at) {
-        (Some(encrypted), Some(_)) => {
-            Zeroizing::new(decrypt_secret(state.config.master_key.expose_secret(), encrypted)
-                .map_err(ApiError::internal)?)
-        }
+        (Some(encrypted), Some(_)) => Zeroizing::new(
+            decrypt_secret(state.config.master_key.expose_secret(), encrypted)
+                .map_err(ApiError::internal)?,
+        ),
         _ => Zeroizing::new(generate_totp_secret().to_vec()),
     };
 
-    let totp = build_totp(&secret, &user.username, state.config.totp_skew)
-        .map_err(ApiError::internal)?;
+    let totp =
+        build_totp(&secret, &user.username, state.config.totp_skew).map_err(ApiError::internal)?;
     let uri = totp_uri(&totp).map_err(ApiError::internal)?;
     let base32 = totp_secret_base32(&totp);
 
@@ -108,8 +108,8 @@ pub async fn enable(
         decrypt_secret(state.config.master_key.expose_secret(), encrypted)
             .map_err(ApiError::internal)?,
     );
-    let totp = build_totp(&secret, &user.username, state.config.totp_skew)
-        .map_err(ApiError::internal)?;
+    let totp =
+        build_totp(&secret, &user.username, state.config.totp_skew).map_err(ApiError::internal)?;
     let step = check_totp_now(&totp, &request.code).ok_or_else(invalid_totp)?;
 
     let now = now_unix();
@@ -136,10 +136,8 @@ pub async fn verify(
     State(state): State<AppState>,
     ApiJson(request): ApiJson<VerifyRequest>,
 ) -> ApiResult<Response> {
-    let user_id = crate::auth::decode_mfa(
-        state.config.jwt_secret.expose_secret(),
-        &request.mfa_token,
-    )?;
+    let user_id =
+        crate::auth::decode_mfa(state.config.jwt_secret.expose_secret(), &request.mfa_token)?;
     let row = load_user_or_401(&state, user_id).await?;
     let now = now_unix();
     let limit_key = rate_limit::twofa_key(row.id);
@@ -214,10 +212,7 @@ pub async fn disable(
         return Err(ApiError::too_many(retry_after));
     }
     if !verify_password(&request.password, &row.password_hash) {
-        return Err(ApiError::unauthorized(
-            "invalid_credentials",
-            "密码错误",
-        ));
+        return Err(ApiError::unauthorized("invalid_credentials", "密码错误"));
     }
     if !row.totp_enabled {
         return Err(ApiError::conflict("not_enabled", "两步验证未开启"));
@@ -267,10 +262,7 @@ pub async fn change_password(
     let mut consumed_step: Option<u64> = None;
     if row.totp_enabled {
         let Some(code) = request.totp_code.as_deref() else {
-            return Err(ApiError::unauthorized(
-                "invalid_totp",
-                "请输入两步验证码",
-            ));
+            return Err(ApiError::unauthorized("invalid_totp", "请输入两步验证码"));
         };
         let step = verify_user_code(&state, &row, code)?;
         consumed_step = Some(step);
@@ -327,11 +319,7 @@ pub async fn change_password(
 
 /// Used by the future "change password" UI: re-hash after verifying the old one
 /// so stale Argon2 parameters never linger.
-pub async fn rehash_if_needed(
-    state: &AppState,
-    user_id: i64,
-    password: &str,
-) -> ApiResult<()> {
+pub async fn rehash_if_needed(state: &AppState, user_id: i64, password: &str) -> ApiResult<()> {
     let row = load_user_or_401(state, user_id).await?;
     if password_needs_rehash(&row.password_hash) {
         let hash = hash_password(password).map_err(ApiError::internal)?;
@@ -353,17 +341,14 @@ async fn load_user_or_401(state: &AppState, user_id: i64) -> ApiResult<UserRow> 
 
 fn verify_user_code(state: &AppState, row: &UserRow, code: &str) -> ApiResult<u64> {
     let Some(encrypted) = row.totp_secret_enc.as_deref() else {
-        return Err(ApiError::bad_request(
-            "setup_required",
-            "两步验证尚未配置",
-        ));
+        return Err(ApiError::bad_request("setup_required", "两步验证尚未配置"));
     };
     let secret = Zeroizing::new(
         decrypt_secret(state.config.master_key.expose_secret(), encrypted)
             .map_err(ApiError::internal)?,
     );
-    let totp = build_totp(&secret, &row.username, state.config.totp_skew)
-        .map_err(ApiError::internal)?;
+    let totp =
+        build_totp(&secret, &row.username, state.config.totp_skew).map_err(ApiError::internal)?;
     if normalize_totp_code(code).is_none() {
         return Err(invalid_totp());
     }

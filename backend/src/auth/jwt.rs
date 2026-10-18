@@ -117,10 +117,7 @@ pub fn issue_mfa(secret: &[u8], user_id: i64, ttl: Duration) -> ApiResult<Issued
 pub fn decode_access(secret: &[u8], token: &str) -> ApiResult<Decoded> {
     match decode_any(secret, token)? {
         access @ Decoded::Access { .. } => Ok(access),
-        Decoded::Mfa { .. } => Err(ApiError::unauthorized(
-            "mfa_required",
-            "请先完成两步验证",
-        )),
+        Decoded::Mfa { .. } => Err(ApiError::unauthorized("mfa_required", "请先完成两步验证")),
     }
 }
 
@@ -141,12 +138,9 @@ fn decode_any(secret: &[u8], token: &str) -> ApiResult<Decoded> {
     validation.set_issuer(&[ISSUER]);
     validation.set_required_spec_claims(&["exp", "sub", "iss", "aud"]);
 
-    let data = jsonwebtoken::decode::<RawClaims>(
-        token,
-        &DecodingKey::from_secret(secret),
-        &validation,
-    )
-    .map_err(|_| ApiError::unauthorized("invalid_token", "登录状态无效或已过期"))?;
+    let data =
+        jsonwebtoken::decode::<RawClaims>(token, &DecodingKey::from_secret(secret), &validation)
+            .map_err(|_| ApiError::unauthorized("invalid_token", "登录状态无效或已过期"))?;
     let claims = data.claims;
 
     if claims.iss != ISSUER {
@@ -166,7 +160,10 @@ fn decode_any(secret: &[u8], token: &str) -> ApiResult<Decoded> {
             "登录状态无效或已过期",
         ));
     }
-    if claims.iat.is_some_and(|iat| iat > now_unix() + CLOCK_LEEWAY_SECS as i64) {
+    if claims
+        .iat
+        .is_some_and(|iat| iat > now_unix() + CLOCK_LEEWAY_SECS as i64)
+    {
         return Err(ApiError::unauthorized(
             "invalid_token",
             "登录状态无效或已过期",
@@ -184,9 +181,7 @@ fn decode_any(secret: &[u8], token: &str) -> ApiResult<Decoded> {
                 jti: claims.jti,
             })
         }
-        ("mfa", AUD_MFA) if claims.scope.as_deref() == Some("mfa") => {
-            Ok(Decoded::Mfa { user_id })
-        }
+        ("mfa", AUD_MFA) if claims.scope.as_deref() == Some("mfa") => Ok(Decoded::Mfa { user_id }),
         _ => Err(ApiError::unauthorized(
             "invalid_token",
             "登录状态无效或已过期",
@@ -216,7 +211,10 @@ mod tests {
 
         assert!(matches!(
             decode_access(SECRET, &access.token).unwrap(),
-            Decoded::Access { token_version: 3, .. }
+            Decoded::Access {
+                token_version: 3,
+                ..
+            }
         ));
         assert_eq!(decode_mfa(SECRET, &mfa.token).unwrap(), 42);
 

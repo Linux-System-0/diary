@@ -36,7 +36,11 @@ fn rust_reads_shared_test_vectors() {
                 nonce.copy_from_slice(&hex_bytes(vector, "nonce_hex"));
 
                 let file = diary_file::encrypt(password, plaintext, salt, nonce).expect("加密");
-                assert_eq!(hex::encode(&file), vector["file_hex"].as_str().unwrap(), "{name}");
+                assert_eq!(
+                    hex::encode(&file),
+                    vector["file_hex"].as_str().unwrap(),
+                    "{name}"
+                );
                 assert_eq!(
                     hex::encode(&file[..diary_file::HEADER_LEN]),
                     vector["header_hex"].as_str().unwrap(),
@@ -56,7 +60,11 @@ fn rust_reads_shared_test_vectors() {
                     diary_file::ARGON2_P_COST,
                 )
                 .expect("派生 key");
-                assert_eq!(hex::encode(key.as_ref()), vector["key_hex"].as_str().unwrap(), "{name}");
+                assert_eq!(
+                    hex::encode(key.as_ref()),
+                    vector["key_hex"].as_str().unwrap(),
+                    "{name}"
+                );
             }
             "decrypt" | "plaintext" => {
                 let password = vector["password"].as_str().unwrap_or("");

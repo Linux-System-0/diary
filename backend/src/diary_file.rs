@@ -175,8 +175,8 @@ pub fn encrypt_with_params(
     p_cost: u8,
 ) -> Result<Vec<u8>> {
     let key = derive_key(password, &salt, m_cost, t_cost, p_cost)?;
-    let cipher = Aes256Gcm::new_from_slice(key.as_ref())
-        .map_err(|_| anyhow::anyhow!("AES 密钥长度错误"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key.as_ref()).map_err(|_| anyhow::anyhow!("AES 密钥长度错误"))?;
 
     let mut header = Header::encrypted();
     header.m_cost = m_cost;
@@ -238,16 +238,13 @@ pub fn decrypt(password: &str, file: &[u8], max_payload: u64) -> Result<Vec<u8>>
         header.t_cost,
         header.p_cost,
     )?;
-    let cipher = Aes256Gcm::new_from_slice(key.as_ref())
-        .map_err(|_| anyhow::anyhow!("AES 密钥长度错误"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key.as_ref()).map_err(|_| anyhow::anyhow!("AES 密钥长度错误"))?;
     let aad = &file[..HEADER_LEN];
     cipher
         .decrypt(
             Nonce::from_slice(&header.nonce),
-            Payload {
-                msg: payload,
-                aad,
-            },
+            Payload { msg: payload, aad },
         )
         .map_err(|_| anyhow::anyhow!("密码错误或文件已损坏"))
 }
@@ -287,7 +284,9 @@ mod tests {
             "# 今天
 
 写了一下午代码。😄
-".as_bytes().to_vec(),
+"
+            .as_bytes()
+            .to_vec(),
             [7u8; SALT_LEN],
             [9u8; NONCE_LEN],
         )
@@ -297,7 +296,10 @@ mod tests {
     fn encrypted_roundtrip() {
         let (password, plaintext, salt, nonce) = sample();
         let file = encrypt(&password, &plaintext, salt, nonce).unwrap();
-        assert_eq!(Header::from_bytes(&file).unwrap().payload_len as usize, plaintext.len() + TAG_LEN);
+        assert_eq!(
+            Header::from_bytes(&file).unwrap().payload_len as usize,
+            plaintext.len() + TAG_LEN
+        );
         assert_eq!(decrypt(&password, &file, u64::MAX).unwrap(), plaintext);
         assert!(decrypt("wrong password", &file, u64::MAX).is_err());
     }

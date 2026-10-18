@@ -24,14 +24,14 @@ use axum::{
 use secrecy::ExposeSecret;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
+use tower_governor::{
+    GovernorError, GovernorLayer, governor::GovernorConfigBuilder,
+    key_extractor::SmartIpKeyExtractor,
+};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     timeout::TimeoutLayer,
     trace::TraceLayer,
-};
-use tower_governor::{
-    GovernorError, GovernorLayer, governor::GovernorConfigBuilder,
-    key_extractor::SmartIpKeyExtractor,
 };
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -202,16 +202,9 @@ fn governor_error(error: GovernorError) -> Response {
     ApiError::too_many(wait).into_response()
 }
 
-async fn origin_guard(
-    State(state): State<AppState>,
-    request: Request,
-    next: Next,
-) -> Response {
+async fn origin_guard(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let sensitive = request.uri().path().starts_with("/api/v1")
-        && !matches!(
-            request.uri().path(),
-            "/api/v1/healthz" | "/api/v1/readyz"
-        );
+        && !matches!(request.uri().path(), "/api/v1/healthz" | "/api/v1/readyz");
 
     if let Some(origin) = request.headers().get(header::ORIGIN) {
         let allowed = origin
@@ -240,11 +233,7 @@ async fn origin_guard(
     response
 }
 
-async fn write_rate_limit(
-    State(state): State<AppState>,
-    request: Request,
-    next: Next,
-) -> Response {
+async fn write_rate_limit(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let is_write = matches!(
         *request.method(),
         Method::POST | Method::PUT | Method::PATCH | Method::DELETE
@@ -288,9 +277,7 @@ pub async fn run(config: Config) -> Result<()> {
 
 async fn shutdown_signal() {
     let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("无法监听 Ctrl-C");
+        tokio::signal::ctrl_c().await.expect("无法监听 Ctrl-C");
     };
 
     #[cfg(unix)]

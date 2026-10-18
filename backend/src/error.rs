@@ -117,10 +117,9 @@ impl IntoResponse for ApiError {
         }));
 
         let mut response = (self.status, body).into_response();
-        response.headers_mut().insert(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("no-store"),
-        );
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
         if let Some(secs) = self.retry_after {
             response.headers_mut().insert(
                 header::RETRY_AFTER,
@@ -128,10 +127,9 @@ impl IntoResponse for ApiError {
             );
         }
         if self.status == StatusCode::UNAUTHORIZED {
-            response.headers_mut().insert(
-                header::WWW_AUTHENTICATE,
-                HeaderValue::from_static("Bearer"),
-            );
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
         }
         response
     }

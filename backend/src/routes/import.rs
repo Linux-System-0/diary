@@ -81,10 +81,7 @@ pub async fn preview(
         .map_err(ApiError::internal)?
         .len();
     if encoded_len > state.config.max_import_bytes {
-        return Err(ApiError::too_large(
-            "import_too_large",
-            "导入内容超过上限",
-        ));
+        return Err(ApiError::too_large("import_too_large", "导入内容超过上限"));
     }
 
     let prepared = prepare_payload(&payload, &state)?;
@@ -142,10 +139,7 @@ pub async fn preview(
     }
 
     let import_id = Uuid::new_v4().to_string();
-    state
-        .imports
-        .put(user.id, import_id.clone(), payload)
-        .await;
+    state.imports.put(user.id, import_id.clone(), payload).await;
 
     let mut warnings = prepared.warnings;
     warnings.sort();
@@ -170,19 +164,21 @@ pub async fn commit(
     ApiJson(request): ApiJson<CommitRequest>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let Some(payload) = state.imports.get(user.id, &request.import_id).await else {
-        return Err(ApiError::not_found("import_expired", "导入预检已过期，请重新预检"));
+        return Err(ApiError::not_found(
+            "import_expired",
+            "导入预检已过期，请重新预检",
+        ));
     };
 
     let prepared = prepare_payload(&payload, &state)?;
     let selected = select_entries(&prepared.entries, request.scope, &request.dates)?;
 
     let mut tx = state.pool.begin().await?;
-    let local_tags = sqlx::query_as::<_, LocalTag>(
-        "SELECT id, name, deleted_at FROM tags WHERE user_id = ?",
-    )
-    .bind(user.id)
-    .fetch_all(&mut *tx)
-    .await?;
+    let local_tags =
+        sqlx::query_as::<_, LocalTag>("SELECT id, name, deleted_at FROM tags WHERE user_id = ?")
+            .bind(user.id)
+            .fetch_all(&mut *tx)
+            .await?;
     let mut tag_ids: HashMap<String, i64> = local_tags
         .iter()
         .map(|tag| (name_norm(&tag.name), tag.id))
@@ -231,13 +227,12 @@ pub async fn commit(
         .await?
         .rows_affected();
 
-        let row: (i64, Option<i64>) = sqlx::query_as(
-            "SELECT id, deleted_at FROM tags WHERE user_id = ? AND name_norm = ?",
-        )
-        .bind(user.id)
-        .bind(&norm)
-        .fetch_one(&mut *tx)
-        .await?;
+        let row: (i64, Option<i64>) =
+            sqlx::query_as("SELECT id, deleted_at FROM tags WHERE user_id = ? AND name_norm = ?")
+                .bind(user.id)
+                .bind(&norm)
+                .fetch_one(&mut *tx)
+                .await?;
 
         if row.1.is_some() {
             sqlx::query("UPDATE tags SET deleted_at = NULL WHERE id = ?")
@@ -263,13 +258,12 @@ pub async fn commit(
             .into_iter()
             .collect();
 
-        let existing: Option<i64> = sqlx::query_scalar(
-            "SELECT id FROM entries WHERE user_id = ? AND entry_date = ?",
-        )
-        .bind(user.id)
-        .bind(&entry.date)
-        .fetch_optional(&mut *tx)
-        .await?;
+        let existing: Option<i64> =
+            sqlx::query_scalar("SELECT id FROM entries WHERE user_id = ? AND entry_date = ?")
+                .bind(user.id)
+                .bind(&entry.date)
+                .fetch_optional(&mut *tx)
+                .await?;
 
         let entry_id = if let Some(id) = existing {
             sqlx::query(
@@ -344,10 +338,7 @@ fn prepare_payload(payload: &DiaryPayload, state: &AppState) -> ApiResult<Prepar
     for tag in &payload.tags {
         let normalized = normalize_tag(&tag.name, tag.color.as_deref(), tag.emoji.as_deref())
             .ok_or_else(|| {
-                ApiError::bad_request(
-                    "bad_file_format",
-                    format!("标签名非法: {}", tag.name),
-                )
+                ApiError::bad_request("bad_file_format", format!("标签名非法: {}", tag.name))
             })?;
         let norm = name_norm(&normalized.name);
         if declared.insert(norm.clone(), normalized).is_some() {
@@ -484,12 +475,12 @@ fn referenced_tags(entries: &[&PreparedEntry]) -> Vec<NormalizedTag> {
 }
 
 async fn load_local_tags(state: &AppState, user_id: i64) -> ApiResult<Vec<LocalTag>> {
-    Ok(sqlx::query_as::<_, LocalTag>(
-        "SELECT id, name, deleted_at FROM tags WHERE user_id = ?",
+    Ok(
+        sqlx::query_as::<_, LocalTag>("SELECT id, name, deleted_at FROM tags WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_all(&state.pool)
+            .await?,
     )
-    .bind(user_id)
-    .fetch_all(&state.pool)
-    .await?)
 }
 
 async fn load_existing_dates(
@@ -500,9 +491,8 @@ async fn load_existing_dates(
     if dates.is_empty() {
         return Ok(HashSet::new());
     }
-    let mut builder = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-        "SELECT entry_date FROM entries WHERE user_id = ",
-    );
+    let mut builder =
+        sqlx::QueryBuilder::<sqlx::Sqlite>::new("SELECT entry_date FROM entries WHERE user_id = ");
     builder.push_bind(user_id);
     builder.push(" AND entry_date IN (");
     let mut separated = builder.separated(", ");

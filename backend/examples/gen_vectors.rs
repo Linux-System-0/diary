@@ -1,6 +1,9 @@
 use std::{fs, path::PathBuf};
 
-use diary::{diary_file, format::{DiaryEntry, DiaryPayload, DiaryTag}};
+use diary::{
+    diary_file,
+    format::{DiaryEntry, DiaryPayload, DiaryTag},
+};
 use serde_json::{Value, json};
 
 fn main() -> anyhow::Result<()> {

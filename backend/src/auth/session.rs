@@ -119,11 +119,13 @@ pub async fn rotate_refresh(
         .bind(row.user_id)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("UPDATE users SET token_version = token_version + 1, updated_at = ? WHERE id = ?")
-            .bind(now)
-            .bind(row.user_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE users SET token_version = token_version + 1, updated_at = ? WHERE id = ?",
+        )
+        .bind(now)
+        .bind(row.user_id)
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         tracing::warn!(user_id = row.user_id, "检测到刷新令牌复用，已吊销全部会话");
         return Err(ApiError::unauthorized(
@@ -157,7 +159,11 @@ pub async fn rotate_refresh(
         ));
     };
 
-    if user.totp_enabled && user.twofa_disable_at.is_some_and(|deadline| now >= deadline) {
+    if user.totp_enabled
+        && user
+            .twofa_disable_at
+            .is_some_and(|deadline| now >= deadline)
+    {
         sqlx::query(
             "UPDATE users SET totp_enabled = 0, totp_secret_enc = NULL, \
              totp_pending_at = NULL, twofa_disable_at = NULL, \

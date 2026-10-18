@@ -114,16 +114,8 @@ pub async fn create(
     ApiJson(request): ApiJson<CreateTagRequest>,
 ) -> ApiResult<Response> {
     let name = validate_name(&request.name)?;
-    let color = request
-        .color
-        .as_deref()
-        .map(validate_color)
-        .transpose()?;
-    let emoji = request
-        .emoji
-        .as_deref()
-        .map(validate_emoji)
-        .transpose()?;
+    let color = request.color.as_deref().map(validate_color).transpose()?;
+    let emoji = request.emoji.as_deref().map(validate_emoji).transpose()?;
     let sort_order = request.sort_order.unwrap_or(0);
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tags WHERE user_id = ?")
