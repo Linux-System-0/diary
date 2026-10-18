@@ -1,11 +1,25 @@
 {
   "extends": "$app/tsconfig",
-  "include": ["src", "test", "*"],
-  "exclude": ["src/service-worker"],
+  "include": [
+    "src",
+    "test",
+    "*"
+  ],
+  "exclude": [
+    "src/service-worker"
+  ],
   "compilerOptions": {
     "strict": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "#lib": [
+        "./src/lib"
+      ],
+      "#lib/*": [
+        "./src/lib/*"
+      ]
+    }
   }
 }
