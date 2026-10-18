@@ -17,9 +17,21 @@
     '&': {
       minHeight: '55vh',
       fontSize: '15px',
-      backgroundColor: 'transparent'
+      backgroundColor: 'transparent',
+      color: 'inherit'
     },
-    '.cm-content': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+    '.cm-content': {
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      caretColor: 'currentColor'
+    },
+    '.cm-gutters': {
+      backgroundColor: 'transparent',
+      border: 'none',
+      color: '#a8a29e'
+    },
+    '.cm-activeLine, .cm-activeLineGutter': {
+      backgroundColor: 'rgba(245, 158, 11, 0.08)'
+    },
     '.cm-scroller': { overflow: 'auto' },
     '&.cm-focused': { outline: 'none' }
   });
