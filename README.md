@@ -171,7 +171,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
    - 若无法 same-site，替代方案：刷新令牌不放 Cookie，仅存内存 → 代价是刷新页面需重新登录（详见 §6.5）。
 3. **CORS 白名单精确匹配**（禁止 `*` 配 credentials），并校验 `Origin`。
 4. **开发期**：Vite `server.proxy` 把 `/api` 代理到后端，避免 CORS/Cookie 差异。
-5. **CSP**：`default-src 'self'; script-src 'self'; connect-src 'self' 'https://api.example.com'; img-src 'self' data:; object-src 'none'; base-uri 'none'`，并用 `click-to-load` 放行外链图片域名（或干脆 `img-src 'self' data:` + 点击后由用户确认取消限制）。
+5. **CSP**：构建时由 SvelteKit 生成带脚本 hash 的 `<meta http-equiv="content-security-policy">`（`script-src 'self'`，无内联脚本、无 CDN；标签颜色需要 `style-src 'unsafe-inline'`）。`connect-src` 默认 `'self'`，若设置 `VITE_API_BASE` 为绝对地址则自动加入该 origin；`img-src` 允许 `'self' data: https:`，但外链图片仍由 `click-to-load` 在点击后才加载。Nginx 额外发送 `frame-ancestors 'none'`（meta CSP 不支持该指令）。
 6. **API 版本前缀 `/api/v1`**，新增字段保持向后兼容。
 
 ---
