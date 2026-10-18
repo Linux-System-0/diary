@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 
 const PASSWORD = 'correct horse battery staple';
 const EXPORT_PASSWORD = 'another correct horse battery';
-const ENTRY_DATE = '2025-01-15';
+const ENTRY_DATE = '2020-01-15';
 const ENTRY_TEXT = '今天写了 E2E';
 
 function base32Bytes(input: string): Buffer {
