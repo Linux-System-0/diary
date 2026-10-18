@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use axum::{
     Router,
     http::{HeaderValue, Method, StatusCode, header},
-    routing::get,
+    routing::{get, post},
 };
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -66,9 +66,17 @@ pub fn app(state: AppState) -> Result<Router> {
         ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT]);
 
+    let auth = Router::new()
+        .route("/auth/register", post(routes::auth::register))
+        .route("/auth/login", post(routes::auth::login))
+        .route("/auth/refresh", post(routes::auth::refresh))
+        .route("/auth/logout", post(routes::auth::logout))
+        .route("/auth/me", get(routes::auth::me));
+
     let api = Router::new()
         .route("/healthz", get(routes::health::healthz))
-        .route("/readyz", get(routes::health::readyz));
+        .route("/readyz", get(routes::health::readyz))
+        .merge(auth);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
