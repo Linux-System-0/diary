@@ -120,23 +120,24 @@ test('register, write, export, offline view, import, 2FA login', async ({ page }
 
   await unlockViewer(page, saved);
 
-  await page.goto('/login?next=/data');
+  // The viewer keeps the selected file in memory across the login redirect,
+  // then can import it directly (after a confirmation dialog).
+  await page.getByRole('button', { name: '登录后导入' }).click();
   await page.getByLabel('用户名').fill(username);
   await page.getByLabel('密码').fill(PASSWORD);
   await page.getByRole('button', { name: '登录' }).click();
-  await expect(page.getByRole('heading', { name: '数据' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '离线查看 .diary' })).toBeVisible();
+  const restoredPassword = page.locator('input[type="password"]').first();
+  await expect(restoredPassword).toBeVisible();
+  await restoredPassword.fill(EXPORT_PASSWORD);
+  await page.getByRole('button', { name: '解密' }).click();
+  await expect(page.getByText('时间线')).toBeVisible();
 
-  const importSection = page.locator('section', {
-    has: page.getByRole('heading', { name: '导入' })
-  });
-  await importSection.locator('input[type="file"]').setInputFiles(saved);
-  await importSection.locator('input[type="password"]').fill(EXPORT_PASSWORD);
-  await importSection.getByRole('button', { name: '解密' }).click();
-  await expect(importSection.getByText(/已解密/)).toBeVisible();
-  await importSection.getByRole('button', { name: '预检导入' }).click();
-  await expect(importSection.getByText('预检结果')).toBeVisible();
-  await importSection.getByRole('button', { name: '确认导入' }).click();
-  await expect(importSection.getByText(/导入完成/)).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '导入到我的日记' }).click();
+  await expect(page.getByText('预检结果')).toBeVisible();
+  await page.getByRole('button', { name: '确认导入' }).click();
+  await expect(page.getByText(/导入完成/)).toBeVisible();
 
   await page.goto(`/day/${ENTRY_DATE}`);
   await expect(page.locator('.cm-content')).toContainText(ENTRY_TEXT);

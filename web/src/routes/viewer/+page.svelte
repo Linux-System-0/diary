@@ -13,7 +13,10 @@
   } from '#lib/diary/format';
   import type { DiaryEntry, DiaryPayload } from '#lib/diary/schema';
   import { auth } from '#lib/stores/auth';
+  import { viewerFile } from '#lib/stores/viewer-file';
   import { dayTitle } from '#lib/utils/date';
+  import { get } from 'svelte/store';
+  import { onMount } from 'svelte';
 
   const PAGE_SIZE = 30;
 
@@ -47,25 +50,40 @@
     new Map((payload?.tags ?? []).map((tag) => [tag.name, tag]))
   );
 
+  onMount(() => {
+    const saved = get(viewerFile);
+    if (saved) {
+      void loadBytes(saved.name, saved.bytes);
+    }
+  });
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    reset();
-    fileName = file.name;
-    error = null;
     if (file.size > 67_108_864 + 57) {
+      reset();
+      fileName = file.name;
       error = '文件超过 64 MiB 上限';
       return;
     }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await loadBytes(file.name, bytes);
+  }
+
+  async function loadBytes(name: string, bytes: Uint8Array) {
+    reset();
+    fileName = name;
+    error = null;
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
       const parsedHeader = parseHeader(bytes);
       header = parsedHeader;
       fileBytes = bytes;
       encrypted = (parsedHeader.flags & 1) === 1;
+      viewerFile.set(encrypted ? { name, bytes } : null);
       if (!encrypted) {
         await unlock();
       }
     } catch (cause) {
+      viewerFile.set(null);
       error = formatError(cause, '无法读取文件');
       fileBytes = null;
       header = null;
@@ -95,6 +113,7 @@
   }
 
   function reset() {
+    viewerFile.set(null);
     fileName = '';
     fileBytes = null;
     header = null;
@@ -250,7 +269,11 @@
       {fileName} · {payload.entries.length} 篇 · {payload.tags.length} 个标签 ·
       {encrypted ? '已加密' : '未加密'}
     </span>
-    <button type="button" class="text-amber-700 hover:underline dark:text-amber-400" onclick={reset}>
+    <button
+      type="button"
+      class="text-amber-700 hover:underline dark:text-amber-400"
+      onclick={() => { viewerFile.set(null); reset(); }}
+    >
       换一个文件
     </button>
   </div>
