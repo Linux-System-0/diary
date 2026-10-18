@@ -80,6 +80,17 @@ pub fn app(state: AppState) -> Result<Router> {
             patch(routes::tags::update).delete(routes::tags::delete),
         );
 
+    let twofa = Router::new()
+        .route("/auth/2fa/verify", post(routes::twofa::verify))
+        .route("/auth/2fa/setup", get(routes::twofa::setup))
+        .route("/auth/2fa/enable", post(routes::twofa::enable))
+        .route("/auth/2fa/disable", post(routes::twofa::disable))
+        .route(
+            "/auth/2fa/disable/cancel",
+            post(routes::twofa::cancel_disable),
+        )
+        .route("/auth/password", post(routes::twofa::change_password));
+
     let entries = Router::new()
         .route("/entries", get(routes::entries::list))
         .route(
@@ -93,6 +104,7 @@ pub fn app(state: AppState) -> Result<Router> {
         .route("/healthz", get(routes::health::healthz))
         .route("/readyz", get(routes::health::readyz))
         .merge(auth)
+        .merge(twofa)
         .merge(tags)
         .merge(entries);
 

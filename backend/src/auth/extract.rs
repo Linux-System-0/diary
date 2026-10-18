@@ -20,6 +20,7 @@ pub struct UserRow {
     pub totp_secret_enc: Option<Vec<u8>>,
     pub totp_enabled: bool,
     pub totp_last_step: i64,
+    pub totp_pending_at: Option<i64>,
     pub twofa_disable_at: Option<i64>,
     pub token_version: i64,
 }
@@ -30,7 +31,8 @@ pub async fn load_user(
 ) -> Result<Option<UserRow>, sqlx::Error> {
     sqlx::query_as::<_, UserRow>(
         "SELECT id, username, password_hash, totp_secret_enc, totp_enabled, \
-         totp_last_step, twofa_disable_at, token_version FROM users WHERE id = ?",
+         totp_last_step, totp_pending_at, twofa_disable_at, token_version \
+         FROM users WHERE id = ?",
     )
     .bind(user_id)
     .fetch_optional(pool)

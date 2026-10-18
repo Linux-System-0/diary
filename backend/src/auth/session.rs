@@ -142,7 +142,8 @@ pub async fn rotate_refresh(
 
     let user = sqlx::query_as::<_, UserRow>(
         "SELECT id, username, password_hash, totp_secret_enc, totp_enabled, \
-         totp_last_step, twofa_disable_at, token_version FROM users WHERE id = ?",
+         totp_last_step, totp_pending_at, twofa_disable_at, token_version \
+         FROM users WHERE id = ?",
     )
     .bind(row.user_id)
     .fetch_optional(&mut *tx)

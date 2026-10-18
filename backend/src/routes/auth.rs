@@ -241,11 +241,11 @@ pub async fn issue_session(
     Ok((access, cookie))
 }
 
-fn set_cookie(response: &mut Response, cookie: HeaderValue) {
+pub(crate) fn set_cookie(response: &mut Response, cookie: HeaderValue) {
     response.headers_mut().insert(header::SET_COOKIE, cookie);
 }
 
-fn no_store(mut response: Response) -> Response {
+pub(crate) fn no_store(mut response: Response) -> Response {
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
