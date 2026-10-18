@@ -2,9 +2,11 @@ use std::fmt;
 
 use axum::{
     Json,
+    extract::{FromRequest, Request, rejection::JsonRejection},
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 /// A single error shape shared by every endpoint:
@@ -154,3 +156,30 @@ impl From<anyhow::Error> for ApiError {
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
+
+/// JSON extractor that converts axum's built-in rejections into the shared API
+/// error shape (and preserves 413 for oversized bodies).
+pub struct ApiJson<T>(pub T);
+
+impl<T, S> FromRequest<S> for ApiJson<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = ApiError;
+
+    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
+        match Json::<T>::from_request(request, state).await {
+            Ok(Json(value)) => Ok(Self(value)),
+            Err(rejection) => Err(json_rejection(rejection)),
+        }
+    }
+}
+
+fn json_rejection(rejection: JsonRejection) -> ApiError {
+    if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
+        return ApiError::too_large("payload_too_large", "请求体超过大小上限");
+    }
+    ApiError::bad_request("bad_json", "请求体不是合法 JSON")
+        .with_details(json!(rejection.body_text()))
+}
