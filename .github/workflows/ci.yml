@@ -16,6 +16,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: backend
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
       - name: Test
         run: cargo test --locked
       - name: Assert bundled SQLite
