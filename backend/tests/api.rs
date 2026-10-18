@@ -478,6 +478,26 @@ async fn two_factor_state_machine_replay_and_lazy_disable() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(value["error"]["code"], "code_already_used");
 
+    // The disable endpoint is limited to 3/day/user.
+    for attempt in 0..4 {
+        let (status, _, value) = app
+            .call(
+                Method::POST,
+                "/api/v1/auth/2fa/disable",
+                Some(json!({ "password": password })),
+                Some(&token),
+                None,
+                None,
+            )
+            .await;
+        if attempt < 3 {
+            assert_eq!(status, StatusCode::OK, "{value}");
+        } else {
+            assert_eq!(status, StatusCode::TOO_MANY_REQUESTS, "{value}");
+            assert_eq!(value["error"]["code"], "rate_limited");
+        }
+    }
+
     // Move the lazy-disable deadline into the past and verify the next
     // authenticated request turns 2FA off and invalidates the token.
     let past = now_unix() - 1;

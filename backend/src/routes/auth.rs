@@ -56,6 +56,14 @@ pub async fn register(
         ));
     }
 
+    if let Some(retry_after) = state
+        .rate_limits
+        .check_and_hit("register:global", 50, 3600, now_unix())
+        .await
+    {
+        return Err(ApiError::too_many(retry_after));
+    }
+
     let username = validate_username(&request.username)?;
     validate_password(&request.password)
         .map_err(|message| ApiError::bad_request("weak_password", message))?;
