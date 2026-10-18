@@ -769,6 +769,8 @@ COMMIT;
 
 TOTP 不强制开启，因此**登录与 2FA 端点限流是主要防线**，6 位码在没有限流时可在数小时内被爆破。
 
+> 反代部署注意：IP 限流信任 `X-Forwarded-For` / `X-Real-IP`。后端应只监听回环地址，并由可信反代**覆盖**这些头（示例 Nginx 使用 `$remote_addr`，而不是 `$proxy_add_x_forwarded_for`）；否则客户端可以伪造头绕过限流。
+
 ---
 
 ## 15. 安全清单
