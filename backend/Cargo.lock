@@ -488,6 +488,7 @@ dependencies = [
  "hex",
  "http-body-util",
  "jsonwebtoken",
+ "libc",
  "password-hash",
  "rand 0.8.8",
  "secrecy",

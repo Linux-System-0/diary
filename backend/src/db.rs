@@ -9,6 +9,12 @@ use sqlx::{
 use crate::config::Config;
 
 pub async fn connect(config: &Config) -> Result<SqlitePool> {
+    // SQLite creates WAL/SHM sidecars itself; a strict umask keeps them 0600 too.
+    #[cfg(unix)]
+    unsafe {
+        libc::umask(0o077);
+    }
+
     let path = &config.db_path;
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
