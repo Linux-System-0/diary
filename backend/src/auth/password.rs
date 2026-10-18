@@ -54,22 +54,14 @@ pub fn validate_password(password: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
-/// A compact built-in weak-password list. Kept in code so validation works
-/// offline and never depends on an external service.
+/// Top-1000 weak passwords, embedded at compile time so validation works
+/// offline. Source: SecLists, `xato-net-10-million-passwords-1000.txt` (MIT).
 fn is_common_password(password: &str) -> bool {
-    const COMMON: &[&str] = &[
-        "12345678", "123456789", "1234567890", "password", "password1", "password123",
-        "qwerty123", "qwertyuiop", "11111111", "00000000", "abc12345", "letmein1",
-        "iloveyou", "admin123", "welcome1", "monkey123", "dragon123", "sunshine",
-        "princess", "football", "baseball", "shadow123", "master123", "superman",
-        "michael123", "jennifer", "trustno1", "passw0rd", "p@ssw0rd", "qazwsx123",
-        "1q2w3e4r", "1qaz2wsx", "zaq12wsx", "asdfghjk", "1234qwer", "qwer1234",
-        "a1234567", "changeme", "secret123", "whatever", "starwars", "computer",
-        "internet", "samsung1", "google123", "facebook", "linkedin", "instagram",
-        "diary123", "diary1234",
-    ];
+    const COMMON: &str = include_str!("common_passwords.txt");
     let normalized = password.trim().to_ascii_lowercase();
-    COMMON.contains(&normalized.as_str())
+    COMMON
+        .lines()
+        .any(|candidate| candidate.trim().eq_ignore_ascii_case(&normalized))
 }
 
 #[cfg(test)]
@@ -82,6 +74,11 @@ mod tests {
         assert!(verify_password("correct horse battery staple", &hash));
         assert!(!verify_password("wrong password", &hash));
         assert!(!password_needs_rehash(&hash));
+    }
+
+    #[test]
+    fn embedded_common_password_list_is_complete() {
+        assert!(include_str!("common_passwords.txt").lines().count() >= 1000);
     }
 
     #[test]
