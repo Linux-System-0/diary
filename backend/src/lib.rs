@@ -13,6 +13,7 @@ use std::{sync::Arc, time::Duration};
 use anyhow::{Context, Result};
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     http::{HeaderValue, Method, StatusCode, header},
     routing::{get, patch, post},
 };
@@ -20,7 +21,6 @@ use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
-    limit::RequestBodyLimitLayer,
     timeout::TimeoutLayer,
     trace::TraceLayer,
 };
@@ -96,6 +96,11 @@ pub fn app(state: AppState) -> Result<Router> {
 
     let export = Router::new().route("/export/prepare", post(routes::export::prepare));
 
+    let import = Router::new()
+        .route("/import/preview", post(routes::import::preview))
+        .route("/import/commit", post(routes::import::commit))
+        .route_layer(DefaultBodyLimit::max(state.config.max_import_bytes));
+
     let entries = Router::new()
         .route("/entries", get(routes::entries::list))
         .route(
@@ -112,7 +117,8 @@ pub fn app(state: AppState) -> Result<Router> {
         .merge(twofa)
         .merge(tags)
         .merge(entries)
-        .merge(export);
+        .merge(export)
+        .merge(import);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
@@ -122,7 +128,7 @@ pub fn app(state: AppState) -> Result<Router> {
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(60),
         ))
-        .layer(RequestBodyLimitLayer::new(2 * 1024 * 1024))
+        .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state))
