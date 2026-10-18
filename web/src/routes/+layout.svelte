@@ -15,6 +15,11 @@
   let { children } = $props();
 
   onMount(() => {
+    // /viewer is fully offline: do not even attempt a session refresh there.
+    if (page.url.pathname === '/viewer') {
+      auth.set({ status: 'anonymous' });
+      return;
+    }
     void bootstrapAuth();
   });
 
