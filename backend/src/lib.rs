@@ -29,7 +29,10 @@ use tower_http::{
     timeout::TimeoutLayer,
     trace::TraceLayer,
 };
-use tower_governor::{GovernorError, GovernorLayer, governor::GovernorConfigBuilder};
+use tower_governor::{
+    GovernorError, GovernorLayer, governor::GovernorConfigBuilder,
+    key_extractor::SmartIpKeyExtractor,
+};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
@@ -83,6 +86,7 @@ pub fn app(state: AppState) -> Result<Router> {
 
     let register_limit = GovernorLayer::new(
         GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
             .per_second(3600)
             .burst_size(5)
             .finish()
@@ -91,6 +95,7 @@ pub fn app(state: AppState) -> Result<Router> {
     .error_handler(governor_error);
     let login_limit = GovernorLayer::new(
         GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
             .per_second(300)
             .burst_size(10)
             .finish()
@@ -99,6 +104,7 @@ pub fn app(state: AppState) -> Result<Router> {
     .error_handler(governor_error);
     let verify_limit = GovernorLayer::new(
         GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
             .per_second(300)
             .burst_size(10)
             .finish()
