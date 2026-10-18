@@ -178,7 +178,8 @@ pub fn app(state: AppState) -> Result<Router> {
         .merge(auth)
         .merge(twofa)
         .merge(business)
-        .fallback(api_not_found);
+        .fallback(api_not_found)
+        .method_not_allowed_fallback(api_method_not_allowed);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
@@ -197,6 +198,14 @@ pub fn app(state: AppState) -> Result<Router> {
 
 async fn api_not_found() -> ApiError {
     ApiError::not_found("not_found", "接口不存在")
+}
+
+async fn api_method_not_allowed() -> ApiError {
+    ApiError::new(
+        StatusCode::METHOD_NOT_ALLOWED,
+        "method_not_allowed",
+        "请求方法不允许",
+    )
 }
 
 fn governor_error(error: GovernorError) -> Response {
