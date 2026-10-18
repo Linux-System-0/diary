@@ -2,7 +2,7 @@
 
 一个自托管的日记本：**Rust 后端 + SvelteKit 前端**，SQLite 单文件存储（SQLite 静态编译进二进制，不依赖目标系统的 sqlite），支持账号密码登录、TOTP 两步验证、自定义标签、Markdown 正文，以及前端加密的 `.diary` 导入/导出。
 
-> **状态：设计规格（v0.1），尚未实现。**
+> **状态：v0.1 已实现（后端 + 前端 + 自动化测试）。**
 > 本文档是实现的唯一事实来源（single source of truth）。代码与本文档冲突时，先改文档。
 > 未标记「待定」的条目均已确定，实现时不应自行更改。
 
@@ -10,6 +10,7 @@
 
 ## 目录
 
+0. [快速开始](#0-快速开始)
 1. [目标与非目标](#1-目标与非目标)
 2. [技术栈](#2-技术栈)
 3. [架构与部署拓扑](#3-架构与部署拓扑)
@@ -29,6 +30,49 @@
 17. [测试计划](#17-测试计划)
 18. [里程碑](#18-里程碑)
 19. [决策记录](#19-决策记录)
+
+---
+
+## 0. 快速开始
+
+### 本地开发
+
+```bash
+# 后端（默认监听 127.0.0.1:8787）
+cd backend
+cp ../.env.example ../.env   # 填入两个随机密钥
+head -c32 /dev/urandom | base64 -w0   # 分别生成 DIARY_JWT_SECRET / DIARY_MASTER_KEY
+cargo run
+
+# 前端（Vite 将 /api 代理到后端）
+cd ../web
+npm install
+npm run dev
+```
+
+浏览器打开 Vite 输出的地址（默认 <http://localhost:5173>）。生产环境必须 HTTPS，并保证前后端 same-site。
+
+### 测试
+
+```bash
+cd backend && cargo test
+cd ../web && npm run check && npm test && npm run build
+# 端到端（本地需要 chromium；会自动启动后端与 preview）
+cd ../web && npm run e2e
+```
+
+### 生产构建
+
+```bash
+cd backend
+cargo build --release --target x86_64-unknown-linux-musl
+# CI 断言：cargo tree -i libsqlite3-sys 的输出中必须出现 bundled
+
+cd ../web
+npm ci && npm run build   # 产物在 web/build，纯静态 SPA
+```
+
+`deploy/nginx.conf.example` 给出同源静态托管 + `/api` 反代 + CSP/HSTS 的参考配置；`scripts/backup-db.sh` 使用 `VACUUM INTO` 做冷备份。
 
 ---
 
