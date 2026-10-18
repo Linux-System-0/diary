@@ -1,4 +1,7 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
+
+const systemChromium = existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 export default defineConfig({
   testDir: './e2e',
@@ -8,10 +11,9 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
-    launchOptions: {
-      executablePath: '/usr/bin/chromium',
-      args: ['--no-sandbox']
-    },
+    launchOptions: systemChromium
+      ? { executablePath: systemChromium, args: ['--no-sandbox'] }
+      : {},
     trace: 'retain-on-failure'
   },
   webServer: [
