@@ -44,6 +44,24 @@ pub fn valid_entry_date(value: &str) -> bool {
     valid_calendar_date(date)
 }
 
+/// Filters (`from`/`to`) may point into the future; only writes are capped at
+/// UTC today + 1 day.
+pub fn valid_filter_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+    {
+        return false;
+    }
+    Date::parse(value, time::macros::format_description!("[year]-[month]-[day]"))
+        .is_ok_and(|date| date.year() >= 1970)
+}
+
 pub fn valid_calendar_date(date: Date) -> bool {
     date.year() >= 1970 && date <= today_utc().next_day().unwrap_or(today_utc())
 }

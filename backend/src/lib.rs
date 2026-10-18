@@ -80,11 +80,21 @@ pub fn app(state: AppState) -> Result<Router> {
             patch(routes::tags::update).delete(routes::tags::delete),
         );
 
+    let entries = Router::new()
+        .route("/entries", get(routes::entries::list))
+        .route(
+            "/entries/{date}",
+            get(routes::entries::get)
+                .put(routes::entries::upsert)
+                .delete(routes::entries::delete),
+        );
+
     let api = Router::new()
         .route("/healthz", get(routes::health::healthz))
         .route("/readyz", get(routes::health::readyz))
         .merge(auth)
-        .merge(tags);
+        .merge(tags)
+        .merge(entries);
 
     Ok(Router::new()
         .nest("/api/v1", api.clone())
