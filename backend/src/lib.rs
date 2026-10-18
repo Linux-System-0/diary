@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod format;
 pub mod import_store;
+pub mod rate_limit;
 pub mod routes;
 pub mod state;
 pub mod util;
@@ -41,6 +42,7 @@ pub fn build_state(config: Config, pool: SqlitePool) -> AppState {
         config: Arc::new(config),
         pool,
         imports: import_store::ImportStore::new(),
+        rate_limits: rate_limit::RateLimits::new(),
     }
 }
 
