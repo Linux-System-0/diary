@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
           mode: 'hash',
           directives: {
             'default-src': ['self'],
-            'script-src': ['self'],
+            'script-src': ['self', 'wasm-unsafe-eval'],
             'style-src': ['self', 'unsafe-inline'],
             'connect-src': connectSrc as never,
             'img-src': ['self', 'data:', 'https:'],
