@@ -52,7 +52,7 @@
         autocomplete="username"
         minlength="3"
         maxlength="32"
-        pattern="[A-Za-z0-9_.-]+"
+        pattern="[A-Za-z0-9_.\-]+"
         title="3–32 位字母、数字、下划线、点或短横线"
         bind:value={username}
         required
