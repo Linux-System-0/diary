@@ -706,3 +706,36 @@ async fn origin_checks_registration_limits_and_body_limits() {
     assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
     assert_eq!(value["error"]["code"], "payload_too_large");
 }
+
+#[tokio::test]
+async fn import_preview_accepts_bodies_above_the_global_two_mib_limit() {
+    let app = TestApp::new().await;
+    let password = "correct horse battery staple";
+    app.register("large", password).await;
+    let session = app.session("large", password).await;
+
+    let chunk = "x".repeat(900_000);
+    let body = json!({
+        "tags": [],
+        "entries": [
+            { "date": "2025-04-01", "content_md": chunk },
+            { "date": "2025-04-02", "content_md": chunk },
+            { "date": "2025-04-03", "content_md": chunk }
+        ],
+        "scope": "all"
+    });
+    assert!(serde_json::to_vec(&body).unwrap().len() > 2 * 1024 * 1024);
+
+    let (status, _, preview) = app
+        .call(
+            Method::POST,
+            "/api/v1/import/preview",
+            Some(body),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(preview["summary"]["create"], 3);
+}
