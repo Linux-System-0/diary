@@ -458,6 +458,56 @@ async fn tags_and_entries_are_user_scoped_and_tags_must_be_active() {
 }
 
 #[tokio::test]
+async fn entry_tag_limit_is_enforced() {
+    let app = TestApp::new().await;
+    let password = "correct horse battery staple";
+    app.register("gina", password).await;
+    let session = app.session("gina", password).await;
+
+    let mut tag_ids = Vec::new();
+    for index in 0..21 {
+        let (status, _, tag) = app
+            .call(
+                Method::POST,
+                "/api/v1/tags",
+                Some(json!({ "name": format!("tag-{index}") })),
+                Some(&session.token),
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(status, StatusCode::CREATED, "{tag}");
+        tag_ids.push(tag["id"].as_i64().unwrap());
+    }
+
+    let (status, _, value) = app
+        .call(
+            Method::PUT,
+            "/api/v1/entries/2025-06-01",
+            Some(json!({ "content_md": "too many", "tag_ids": tag_ids })),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(value["error"]["code"], "too_many_tags");
+
+    let (status, _, value) = app
+        .call(
+            Method::PUT,
+            "/api/v1/entries/2025-06-01",
+            Some(json!({ "content_md": "twenty", "tag_ids": &tag_ids[..20] })),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{value}");
+    assert_eq!(value["tags"].as_array().unwrap().len(), 20);
+}
+
+#[tokio::test]
 async fn two_factor_state_machine_replay_and_lazy_disable() {
     let app = TestApp::new().await;
     let password = "correct horse battery staple";
@@ -687,6 +737,26 @@ async fn export_and_import_are_scoped_idempotent_and_do_not_touch_other_dates() 
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(only_one["entries"].as_array().unwrap().len(), 1);
+
+    let (status, _, duplicate) = app
+        .call(
+            Method::POST,
+            "/api/v1/import/preview",
+            Some(json!({
+                "tags": [],
+                "entries": [
+                    { "date": "2025-02-01", "content_md": "a" },
+                    { "date": "2025-02-01", "content_md": "b" }
+                ],
+                "scope": "all"
+            })),
+            Some(&session.token),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(duplicate["error"]["code"], "bad_file_format");
 
     let import_body = json!({
         "tags": [
